@@ -5,3 +5,7 @@ orjson==3.8.4
 pydantic==1.9.0
 uvicorn==0.12.2
 uvloop==0.17.0
+redis==4.3.4
+python-dotenv==0.20.0
+flake8==4.0.1
+isort==5.10.1
