@@ -3,9 +3,9 @@ from core.json import orjson_dumps
 from pydantic import BaseModel
 
 
-class Film(BaseModel):
+class Genre(BaseModel):
     id: str
-    title: str
+    name: str
     description: str
 
     class Config:
