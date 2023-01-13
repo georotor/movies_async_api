@@ -1,0 +1,70 @@
+version: '3'
+services:
+  elastic:
+    image: elasticsearch:7.17.8
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1000m -Xmx1000m
+    ports:
+      - 9200:9200
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:9200 | grep -q 'HTTP/1.1 200 OK'",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+  kibana:
+    image: kibana:7.17.8
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://elastic:9200"]
+    ports:
+      - 5601:5601
+    depends_on:
+      - elastic
+  redis:
+    image: redis:7.0.7
+    ports:
+      - 6379:6379
+  redis-commander:
+    build: git@github.com:joeferner/redis-commander.git
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - 8081:8081
+    depends_on:
+      - redis
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_PASSWORD=123qwe
+      - POSTGRES_USER=app
+      - POSTGRES_DB=movies_database
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    volumes:
+      - ./dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    depends_on:
+      - elastic
+  etl:
+    build: git@github.com:georotor/new_admin_panel_sprint_3.git#main
+    container_name: etl
+    environment:
+      - INTERVAL=5m
+      - ES_HOST=http://elastic:9200
+      - POSTGRES_PASSWORD=123qwe
+      - POSTGRES_USER=app
+      - POSTGRES_DB=movies_database
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    depends_on:
+      elastic:
+        condition: service_healthy
+volumes:
+  elastic_data:
+  postgres_data:
