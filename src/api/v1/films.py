@@ -1,9 +1,9 @@
-from http import HTTPStatus
-
 from enum import Enum
+from http import HTTPStatus
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from uuid import UUID
 
 from services.film import FilmService, get_film_service
 

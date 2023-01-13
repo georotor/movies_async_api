@@ -1,25 +1,22 @@
+from uuid import UUID
+from functools import lru_cache
+from operator import itemgetter
+
+from elasticsearch import AsyncElasticsearch
+from fastapi import Depends
+
+from db.elastic import get_elastic
 from models.person import Person
 from services.node import NodeService
 
-from uuid import UUID
-from operator import itemgetter
-
-from functools import lru_cache
-from aioredis import Redis
-from elasticsearch import AsyncElasticsearch, NotFoundError
-from fastapi import Depends
-
-
-from db.elastic import get_elastic
-from db.redis import get_redis
-
 
 class PersonService(NodeService):
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        super().__init__(redis, elastic)
+    def __init__(self, elastic: AsyncElasticsearch):
+        super().__init__(elastic)
         self.Node = Person
         self.index = 'persons'
 
+    """У персоны часть данных лежит в другом индексе, поэтому подменяем метод базового класса."""
     async def get_by_id(self, person_id: UUID) -> Person | None:
         person = await super().get_by_id(person_id)
         if not person:
@@ -43,7 +40,7 @@ class PersonService(NodeService):
         return person
 
     async def get_movies_with_person(self, person_id: UUID) -> list[dict[str, ...]] | None:
-        # Ищем кинопроизведения с участием данной персоны
+        # Ищем все кинопроизведения с участием данной персоны во всех ролях
         query = {"bool": {"should": []}}
         for role in ("actors", "writers", "directors"):
             query["bool"]["should"].append({
@@ -62,7 +59,6 @@ class PersonService(NodeService):
 
 @lru_cache()
 def get_person_service(
-        redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(redis, elastic)
+    return PersonService(elastic)
