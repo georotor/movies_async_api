@@ -1,45 +1,108 @@
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException
+from enum import Enum
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from uuid import UUID
 
 from services.film import FilmService, get_film_service
 
-# Объект router, в котором регистрируем обработчики
 router = APIRouter()
 
-# FastAPI в качестве моделей использует библиотеку pydantic
-# https://pydantic-docs.helpmanual.io
-# У неё есть встроенные механизмы валидации, сериализации и десериализации
-# Также она основана на дата-классах
+
+class Genre(BaseModel):
+    id: UUID
+    name: str
 
 
-# Модель ответа API
+class Person(BaseModel):
+    id: UUID
+    name: str
+
+
 class Film(BaseModel):
-    id: str
+    id: UUID
     title: str
+    imdb_rating: float
 
 
-# С помощью декоратора регистрируем обработчик film_details
-# На обработку запросов по адресу <some_prefix>/some_id
-# Позже подключим роутер к корневому роутеру
-# И адрес запроса будет выглядеть так — /api/v1/film/some_id
-# В сигнатуре функции указываем тип данных, получаемый из адреса запроса (film_id: str)
-# И указываем тип возвращаемого объекта — Film
-# Внедряем FilmService с помощью Depends(get_film_service)
-@router.get('/{film_id}', response_model=Film)
-async def film_details(film_id: str, film_service: FilmService = Depends(get_film_service)) -> Film:
+class FilmFull(BaseModel):
+    id: UUID
+    title: str
+    imdb_rating: float
+    description: str
+    genre: list[Genre]
+    actors: list[Person]
+    writers: list[Person]
+    directors: list[Person]
+
+
+class FilmsSorting(str, Enum):
+    asc = "+imdb_rating"
+    desc = "-imdb_rating"
+
+
+@router.get('/search/', response_model=list[Film])
+async def films_search(
+        query: str = Query(default=..., min_length=3),
+        page_size: int = Query(default=10, alias="page[size]", gt=0, le=100),
+        page_number: int = Query(default=1, alias="page[number]", gt=0),
+        film_service: FilmService = Depends(get_film_service)
+) -> list[Film]:
+
+    if query:
+        query = {
+            "query_string": {
+                "query": query
+            }
+        }
+
+    movies = await film_service.get(query=query, size=page_size, page_number=page_number)
+    if not movies:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
+
+    return [Film(**film.dict()) for film in movies]
+
+
+@router.get('/{film_id}', response_model=FilmFull)
+async def film_details(film_id: UUID, film_service: FilmService = Depends(get_film_service)) -> FilmFull:
     film = await film_service.get_by_id(film_id)
     if not film:
-        # Если фильм не найден, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='film not found')
 
-    # Перекладываем данные из models.Film в Film
-    # Обратите внимание, что у модели бизнес-логики есть поле description
-    # Которое отсутствует в модели ответа API.
-    # Если бы использовалась общая модель для бизнес-логики и формирования ответов API
-    # вы бы предоставляли клиентам данные, которые им не нужны
-    # и, возможно, данные, которые опасно возвращать
-    return Film(id=film.id, title=film.title)
+    return FilmFull(**film.dict())
+
+
+@router.get('/', response_model=list[Film])
+async def films(
+        sort: FilmsSorting | None = None,
+        filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),
+        page_size: int = Query(default=10, alias="page[size]", gt=0, le=100),
+        page_number: int = Query(default=1, alias="page[number]", gt=0),
+        film_service: FilmService = Depends(get_film_service)
+) -> list[Film]:
+
+    sorting = None
+    if sort:
+        match sort:
+            case "+imdb_rating":
+                sorting = [{"imdb_rating": "asc" }]
+            case "-imdb_rating":
+                sorting = [{"imdb_rating": "desc"}]
+
+    query = None
+    if filter_genre:
+        query = {
+            "nested": {
+                "path": "genre",
+                "query": {
+                    "term": {"genre.id": filter_genre}
+                }
+            }
+        }
+
+    movies = await film_service.get(query=query, sort=sorting, size=page_size, page_number=page_number)
+    if not movies:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
+
+    return [Film(**film.dict()) for film in movies]
