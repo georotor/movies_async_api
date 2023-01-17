@@ -27,8 +27,23 @@ class FilmService:
 
         return film
 
-    async def get_films(self) -> list[Film]:
-        query = {}
+    async def get_films(
+        self,
+        sort_field="imdb_rating",
+        sort_order="desc",
+        genre="",
+        page=1,
+        per_page=50,
+    ) -> list[Film]:
+        from_ = (page - 1) * per_page
+        query = {
+            "from": from_,
+            "size": per_page,
+            "query": {
+                "nested": {"query": {"match": {"genre.id": genre}}, "path": "genre"}
+            },
+            "sort": {sort_field: sort_order},
+        }
         try:
             doc = await self.elastic.search(index="movies", body=query)
         except NotFoundError:

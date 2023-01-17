@@ -47,9 +47,22 @@ async def film_details(
     return FilmDetails(**film.dict())
 
 
-@router.get("/", response_model=list[Film])
-async def get_films(film_service: FilmService = Depends(get_film_service)):
-    films = await film_service.get_films()
+@router.get("", response_model=list[Film])
+async def get_films(
+    genre: str,
+    page: int = 1,
+    per_page: int = 50,
+    sort_field: str = "imdb_rating",
+    sort_order: str = "desc",
+    film_service: FilmService = Depends(get_film_service),
+):
+    films = await film_service.get_films(
+        sort_field=sort_field,
+        sort_order=sort_order,
+        genre=genre,
+        page=page,
+        per_page=per_page,
+    )
     if not films:
         return []
     return [
