@@ -7,7 +7,30 @@ services:
       - ES_JAVA_OPTS=-Xms1000m -Xmx1000m
     ports:
       - 9200:9200
+  db:
+    image: postgres:13
+    volumes:
+      - ./dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    env_file:
+      - ./.env.db
+    depends_on:
+      - elastic
   redis:
     image: redis:7.0.7
     ports:
       - 6379:6379
+  etl:
+    # build: .
+    image: etl_arthur:latest
+    container_name: etl
+    env_file:
+      - ./.env
+      - ./.env.db
+    depends_on:
+      elastic:
+        condition: service_healthy
+volumes:
+  postgres_data:

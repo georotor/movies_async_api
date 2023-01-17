@@ -35,12 +35,33 @@ class FilmService:
 
         return film
 
-    async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
+    async def get_films(self) -> list[Film]:
+        query = {}
         try:
-            doc = await self.elastic.get('movies', film_id)
+            doc = await self.elastic.search(index="movies", body=query)
         except NotFoundError:
             return None
-        return Film(**doc['_source'])
+        return [Film(**film["_source"]) for film in doc["hits"]["hits"]]
+
+    async def search(self, query) -> list[Film]:
+        query = {
+            "query": {
+                "multi_match": {"query": query, "fields": ["title^3", "description"]}
+            },
+            "sort": {"imdb_rating": "desc"},
+        }
+        try:
+            doc = await self.elastic.search(index="movies", body=query)
+        except NotFoundError:
+            return None
+        return [Film(**film["_source"]) for film in doc["hits"]["hits"]]
+
+    async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
+        try:
+            doc = await self.elastic.get("movies", film_id)
+        except NotFoundError:
+            return None
+        return Film(**doc["_source"])
 
     async def _film_from_cache(self, film_id: str) -> Optional[Film]:
         # Пытаемся получить данные о фильме из кеша, используя команду get
@@ -67,7 +88,7 @@ class FilmService:
 # Используем lru_cache-декоратор, чтобы создать объект сервиса в едином экземпляре (синглтона)
 @lru_cache()
 def get_film_service(
-        redis: Redis = Depends(get_redis),
-        elastic: AsyncElasticsearch = Depends(get_elastic),
+    redis: Redis = Depends(get_redis),
+    elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
     return FilmService(redis, elastic)
