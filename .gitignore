@@ -134,3 +134,9 @@ dmypy.json
 .pyre/
 
 .python-version
+
+*.sql
+
+# pipenv
+Pipfile
+Pipfile.lock
