@@ -27,7 +27,7 @@ async def get_genres(
 
 @router.get("/{genre_id}", response_model=Genre)
 async def get_person_details(
-    genre_id: UUID, genre_service: GenreService = Depends(get_genre_service)
+    genre_id: str, genre_service: GenreService = Depends(get_genre_service)
 ) -> Genre:
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
