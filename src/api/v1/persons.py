@@ -27,7 +27,7 @@ async def get_persons(
 
 @router.get("/{person_id}", response_model=Person)
 async def get_person_details(
-    person_id: str, person_service: PersonService = Depends(get_person_service)
+    person_id: UUID, person_service: PersonService = Depends(get_person_service)
 ) -> Person:
     person = await person_service.get_by_id(person_id)
     if not person:
