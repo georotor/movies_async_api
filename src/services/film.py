@@ -18,12 +18,9 @@ class FilmService:
         self.elastic = elastic
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
-        film = await self._film_from_cache(film_id)
+        film = await self._get_film_from_elastic(film_id)
         if not film:
-            film = await self._get_film_from_elastic(film_id)
-            if not film:
-                return None
-            await self._put_film_to_cache(film)
+            return None
 
         return film
 
@@ -40,7 +37,7 @@ class FilmService:
             "from": from_,
             "size": per_page,
             "query": {
-                "nested": {"query": {"match": {"genre.id": genre}}, "path": "genre"}
+                "nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}
             },
             "sort": {sort_field: sort_order},
         }
