@@ -1,21 +1,17 @@
-import orjson
-from core.json import orjson_dumps
-from pydantic import BaseModel
 from uuid import UUID
 
+import orjson
+from pydantic import BaseModel
 
-class Roles(BaseModel):
-    actors: list[UUID] | None
-    writers: list[UUID] | None
-    directors: list[UUID] | None
+
+def orjson_dumps(v, *, default):
+    return orjson.dumps(v, default=default).decode()
 
 
 class Person(BaseModel):
     id: UUID
     name: str
-    roles: dict[str, list[UUID]] | None
 
     class Config:
-        # Заменяем стандартную работу с json на более быструю
         json_loads = orjson.loads
         json_dumps = orjson_dumps
