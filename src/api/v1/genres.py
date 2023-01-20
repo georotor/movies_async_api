@@ -19,10 +19,10 @@ async def get_genres(
     query: str = Query(default=..., min_length=3),
     genre_service: GenreService = Depends(get_genre_service),
 ):
-    persons = await genre_service.search(query)
-    if not persons:
+    genres = await genre_service.search(query)
+    if not genres:
         return []
-    return persons
+    return genres
 
 
 @router.get("/{genre_id}", response_model=Genre)
