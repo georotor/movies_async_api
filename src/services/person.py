@@ -8,6 +8,7 @@ from fastapi import Depends
 from db.elastic import get_elastic
 from db.redis import get_redis
 from models.person import Person
+from models.film import Film
 
 
 class PersonService:
@@ -21,6 +22,20 @@ class PersonService:
             return None
 
         return person
+
+    async def get_person_films(self, person_id: str) -> Optional[Film]:
+        query = {"query": {"bool": {"should": [
+            {"nested": {"query": {"term": {"actors.id": person_id}}, "path": "actors"}},
+            {"nested": {"query": {"term": {"writers.id": person_id}}, "path": "writers"}},
+            {"nested": {"query": {"term": {"directors.id": person_id}}, "path": "directors"}}
+        ]}},
+        "sort": {"imdb_rating": "desc"}}
+
+        try:
+            doc = await self.elastic.search(index="movies", body=query)
+        except NotFoundError:
+            return None
+        return [Film(**film["_source"]) for film in doc["hits"]["hits"]]
 
     async def get_persons(
         self,

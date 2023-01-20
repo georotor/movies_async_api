@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from services.person import PersonService, get_person_service
+from api.v1.films import Film
 
 router = APIRouter()
 
@@ -23,6 +24,16 @@ async def get_persons(
     if not persons:
         return []
     return persons
+
+
+@router.get("/{person_id}/film", response_model=list[Film])
+async def get_person_films(
+    person_id: UUID, person_service: PersonService = Depends(get_person_service)
+):
+    films = await person_service.get_person_films(person_id)
+    if not films:
+        return []
+    return films
 
 
 @router.get("/{person_id}", response_model=Person)
