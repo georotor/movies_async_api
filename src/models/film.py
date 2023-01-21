@@ -9,7 +9,6 @@ class Genre(BaseModel):
     name: str
 
     class Config:
-        # Заменяем стандартную работу с json на более быструю
         json_loads = orjson.loads
         json_dumps = orjson_dumps
 
@@ -19,7 +18,6 @@ class Person(BaseModel):
     name: str
 
     class Config:
-        # Заменяем стандартную работу с json на более быструю
         json_loads = orjson.loads
         json_dumps = orjson_dumps
 
@@ -35,7 +33,6 @@ class Film(BaseModel):
     directors: list[Person]
 
     class Config:
-        # Заменяем стандартную работу с json на более быструю
         json_loads = orjson.loads
         json_dumps = orjson_dumps
 
@@ -43,3 +40,7 @@ class Film(BaseModel):
 class FilmsList(BaseModel):
     count: int
     results: list[Film]
+
+    class Config:
+        json_loads = orjson.loads
+        json_dumps = orjson_dumps

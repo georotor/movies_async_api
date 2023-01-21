@@ -10,36 +10,36 @@ from services.film import FilmService, get_film_service
 router = APIRouter()
 
 
-class Genre(BaseModel):
+class GenreShort(BaseModel):
     id: UUID
     name: str
 
 
-class Person(BaseModel):
+class PersonShort(BaseModel):
     id: UUID
     name: str
+
+
+class FilmShort(BaseModel):
+    id: UUID
+    title: str
+    imdb_rating: float
 
 
 class Film(BaseModel):
     id: UUID
     title: str
     imdb_rating: float
-
-
-class FilmFull(BaseModel):
-    id: UUID
-    title: str
-    imdb_rating: float
     description: str
-    genre: list[Genre]
-    actors: list[Person]
-    writers: list[Person]
-    directors: list[Person]
+    genre: list[GenreShort]
+    actors: list[PersonShort]
+    writers: list[PersonShort]
+    directors: list[PersonShort]
 
 
 class FilmsList(BaseModel):
     count: int
-    results: list[Film]
+    results: list[FilmShort]
 
 
 class FilmsSorting(str, Enum):
@@ -62,13 +62,13 @@ async def films_search(
     return FilmsList(**movies.dict())
 
 
-@router.get('/{film_id}', response_model=FilmFull)
-async def film_details(film_id: UUID, film_service: FilmService = Depends(get_film_service)) -> FilmFull:
+@router.get('/{film_id}', response_model=Film)
+async def film_details(film_id: UUID, film_service: FilmService = Depends(get_film_service)) -> Film:
     film = await film_service.get_by_id(film_id)
     if not film:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='film not found')
 
-    return FilmFull(**film.dict())
+    return Film(**film.dict())
 
 
 @router.get('/', response_model=FilmsList)
