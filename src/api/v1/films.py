@@ -37,31 +37,29 @@ class FilmFull(BaseModel):
     directors: list[Person]
 
 
+class FilmsList(BaseModel):
+    count: int
+    results: list[Film]
+
+
 class FilmsSorting(str, Enum):
-    asc = "+imdb_rating"
+    asc = "imdb_rating"
     desc = "-imdb_rating"
 
 
-@router.get('/search/', response_model=list[Film])
+@router.get('/search/', response_model=FilmsList)
 async def films_search(
         query: str = Query(default=..., min_length=3),
-        page_size: int = Query(default=10, alias="page[size]", gt=0, le=100),
-        page_number: int = Query(default=1, alias="page[number]", gt=0),
+        page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
+        page_number: int = Query(default=1, alias="page[number]", ge=1, le=50),
         film_service: FilmService = Depends(get_film_service)
-) -> list[Film]:
+) -> FilmsList:
 
-    if query:
-        query = {
-            "query_string": {
-                "query": query
-            }
-        }
-
-    movies = await film_service.get(query=query, size=page_size, page_number=page_number)
+    movies = await film_service.search(query=query, page_number=page_number, size=page_size)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return [Film(**film.dict()) for film in movies]
+    return FilmsList(**movies.dict())
 
 
 @router.get('/{film_id}', response_model=FilmFull)
@@ -73,36 +71,17 @@ async def film_details(film_id: UUID, film_service: FilmService = Depends(get_fi
     return FilmFull(**film.dict())
 
 
-@router.get('/', response_model=list[Film])
+@router.get('/', response_model=FilmsList)
 async def films(
         sort: FilmsSorting | None = None,
         filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),
-        page_size: int = Query(default=10, alias="page[size]", gt=0, le=100),
-        page_number: int = Query(default=1, alias="page[number]", gt=0),
+        page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
+        page_number: int = Query(default=1, alias="page[number]", ge=1),
         film_service: FilmService = Depends(get_film_service)
-) -> list[Film]:
+) -> FilmsList:
 
-    sorting = None
-    if sort:
-        match sort:
-            case "+imdb_rating":
-                sorting = [{"imdb_rating": "asc" }]
-            case "-imdb_rating":
-                sorting = [{"imdb_rating": "desc"}]
-
-    query = None
-    if filter_genre:
-        query = {
-            "nested": {
-                "path": "genre",
-                "query": {
-                    "term": {"genre.id": filter_genre}
-                }
-            }
-        }
-
-    movies = await film_service.get(query=query, sort=sorting, size=page_size, page_number=page_number)
+    movies = await film_service.get(sort=sort, filter_genre=filter_genre, size=page_size, page_number=page_number)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return [Film(**film.dict()) for film in movies]
+    return FilmsList(**movies.dict())
