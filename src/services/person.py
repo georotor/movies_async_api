@@ -13,7 +13,6 @@ from models.film import Film
 
 class PersonService:
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.redis = redis
         self.elastic = elastic
 
     async def get_by_id(self, person_id: str) -> Optional[Person]:
@@ -24,7 +23,9 @@ class PersonService:
         return person
 
     async def get_person_films(self, person_id: str) -> Optional[Film]:
-        query = {"query": {"bool": {"should": [
+        query = {
+            "size": 100,
+            "query": {"bool": {"should": [
             {"nested": {"query": {"term": {"actors.id": person_id}}, "path": "actors"}},
             {"nested": {"query": {"term": {"writers.id": person_id}}, "path": "writers"}},
             {"nested": {"query": {"term": {"directors.id": person_id}}, "path": "directors"}}
@@ -39,29 +40,43 @@ class PersonService:
 
     async def get_persons(
         self,
-        page=1,
         per_page=50,
-    ) -> list[Person]:
-        from_ = (page - 1) * per_page
+        search_after: str = None
+    ) -> tuple[list[Person], list]:
         query = {
-            "from": from_,
             "size": per_page,
+            "sort": [
+                {"id": "asc"}
+            ]
         }
-        try:
-            doc = await self.elastic.search(index="persons", body=query)
-        except NotFoundError:
-            return None
-        return [Person(**person["_source"]) for person in doc["hits"]["hits"]]
+        if search_after:
+            query['search_after'] = search_after.split(",")
 
-    async def search(self, query) -> list[Person]:
-        query = {
-            "query": {"match": {"name": {"query": query, "fuzziness": "AUTO"}}},
-        }
         try:
             doc = await self.elastic.search(index="persons", body=query)
         except NotFoundError:
             return None
-        return [Person(**person["_source"]) for person in doc["hits"]["hits"]]
+        hits = doc['hits']['hits']
+        search_after = hits[-1].get('sort') or []
+        return [Person(**person["_source"]) for person in doc["hits"]["hits"]], search_after
+
+    async def search(self, query, per_page: int = 50, search_after: str = None) -> tuple[list[Person], list]:
+        query = {
+            "size": per_page,
+            "query": {"match": {"name": {"query": query, "fuzziness": "AUTO"}}},
+            "sort": [
+                {"id": "asc"}
+            ]
+        }
+        if search_after:
+            query['search_after'] = search_after.split(',')
+        try:
+            doc = await self.elastic.search(index="persons", body=query)
+        except NotFoundError:
+            return None
+        hits = doc['hits']['hits']
+        search_after = hits[-1].get('sort') or []
+        return [Person(**person["_source"]) for person in hits], search_after
 
     async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
         try:

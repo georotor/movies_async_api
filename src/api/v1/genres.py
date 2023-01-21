@@ -38,14 +38,9 @@ async def get_person_details(
 
 @router.get("", response_model=list[Genre])
 async def get_genres(
-    page: int = 1,
-    per_page: int = 50,
     genre_service: GenreService = Depends(get_genre_service),
 ):
-    genres = await genre_service.get_genres(
-        page=page,
-        per_page=per_page,
-    )
+    genres = await genre_service.get_genres()
     if not genres:
         return []
     return genres

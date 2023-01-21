@@ -36,18 +36,26 @@ class FilmDetails(BaseModel):
     directors: list[Person]
 
 
-@router.get("/search", response_model=list[Film])
+class Result(BaseModel):
+    search_after: list
+    result: list[Film]
+
+
+@router.get("/search", response_model=Result)
 async def get_films(
     query: str = Query(default=..., min_length=3),
+    per_page: int = Query(default=50, ge=10, le=100),
+    search_after: str = None,
     film_service: FilmService = Depends(get_film_service),
 ):
-    films = await film_service.search(query)
+    films, search_after = await film_service.search(query, per_page, search_after)
     if not films:
         return []
-    return [
+    films = [
         Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
         for film in films
     ]
+    return Result(search_after=search_after, result=films)
 
 
 @router.get("/{film_id}", response_model=FilmDetails)
@@ -61,25 +69,27 @@ async def film_details(
     return FilmDetails(**film.dict())
 
 
-@router.get("", response_model=list[Film])
+@router.get("", response_model=Result)
 async def get_films(
     genre: str,
-    page: int = 1,
-    per_page: int = 50,
+    # page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=10, le=100),
     sort_field: str = "imdb_rating",
     sort_order: str = "desc",
+    search_after: str = None,
     film_service: FilmService = Depends(get_film_service),
 ):
-    films = await film_service.get_films(
+    films, search_after = await film_service.get_films(
         sort_field=sort_field,
         sort_order=sort_order,
         genre=genre,
-        page=page,
         per_page=per_page,
+        search_after=search_after,
     )
     if not films:
         return []
-    return [
+    films = [
         Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
         for film in films
     ]
+    return Result(search_after=search_after, result=films)
