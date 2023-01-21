@@ -15,15 +15,22 @@ class Person(BaseModel):
     name: str
 
 
-@router.get("/search", response_model=list[Person])
+class Result(BaseModel):
+    search_after: list
+    result: list[Person]
+
+
+@router.get("/search", response_model=Result)
 async def get_persons(
     query: str = Query(default=..., min_length=3),
+    per_page: int = Query(default=50, ge=10, le=100),
+    search_after: str = None,
     person_service: PersonService = Depends(get_person_service),
 ):
-    persons = await person_service.search(query)
+    persons, search_after = await person_service.search(query, per_page, search_after)
     if not persons:
-        return []
-    return persons
+        return Result(search_after=search_after, result=[])
+    return Result(search_after=search_after, result=persons)
 
 
 @router.get("/{person_id}/film", response_model=list[Film])
@@ -47,16 +54,16 @@ async def get_person_details(
     return Person(**person.dict())
 
 
-@router.get("", response_model=list[Person])
+@router.get("", response_model=Result)
 async def get_persons(
-    page: int = 1,
-    per_page: int = 50,
+    per_page: int = Query(default=50, ge=10, le=100),
+	search_after: str = None,
     person_service: PersonService = Depends(get_person_service),
 ):
-    persons = await person_service.get_persons(
-        page=page,
+    persons, search_after = await person_service.get_persons(
         per_page=per_page,
+		search_after=search_after
     )
     if not persons:
-        return []
-    return persons
+        return Result(search_after=search_after, result=[])
+    return Result(search_after=search_after, result=persons)

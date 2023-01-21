@@ -12,7 +12,6 @@ from models.genre import Genre
 
 class GenreService:
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.redis = redis
         self.elastic = elastic
 
     async def get_by_id(self, genre_id: str) -> Optional[Genre]:
@@ -24,13 +23,9 @@ class GenreService:
 
     async def get_genres(
         self,
-        page=1,
-        per_page=50,
     ) -> list[Genre]:
-        from_ = (page - 1) * per_page
         query = {
-            "from": from_,
-            "size": per_page,
+            "size": 100,
         }
         try:
             doc = await self.elastic.search(index="genres", body=query)
