@@ -47,7 +47,7 @@ class FilmsSorting(str, Enum):
     desc = "-imdb_rating"
 
 
-@router.get('/search/', response_model=FilmsList)
+@router.get('/search/', response_model=FilmsList, description="Поиск по фильмам.")
 async def films_search(
         query: str = Query(default=..., min_length=3),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
@@ -62,7 +62,7 @@ async def films_search(
     return FilmsList(**movies.dict())
 
 
-@router.get('/{film_id}', response_model=Film)
+@router.get('/{film_id}', response_model=Film, description="Детальная информация по фильму.")
 async def film_details(film_id: UUID, film_service: FilmService = Depends(get_film_service)) -> Film:
     film = await film_service.get_by_id(film_id)
     if not film:
@@ -71,7 +71,7 @@ async def film_details(film_id: UUID, film_service: FilmService = Depends(get_fi
     return Film(**film.dict())
 
 
-@router.get('/', response_model=FilmsList)
+@router.get('/', response_model=FilmsList, description="Постраничный список фильмов.")
 async def films(
         sort: FilmsSorting | None = None,
         filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),

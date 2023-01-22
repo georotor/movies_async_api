@@ -6,7 +6,8 @@ from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
 
 from db.elastic import get_elastic
-from models.person import Person
+from models.person import Person, PersonsList
+from models.film import Film, FilmsList
 from services.node import NodeService
 
 
@@ -16,30 +17,60 @@ class PersonService(NodeService):
         self.Node = Person
         self.index = 'persons'
 
+    async def search(self, query: str, page_number=1, size=10) -> PersonsList | None:
+        _query = {
+            "query_string": {
+                "query": query
+            }
+        }
+
+        docs = await self._get_from_elastic(query=_query, size=size, page_number=page_number)
+        if not docs:
+            return None
+
+        person_list = PersonsList(
+            count=docs['hits']['total']['value'],
+            results=[]
+        )
+
+        for doc in docs['hits']['hits']:
+            person = Person(**doc['_source'])
+            person = await self.get_person_with_movies(person)
+            person_list.results.append(person)
+
+        return person_list
+
     """У персоны часть данных лежит в другом индексе, поэтому подменяем метод базового класса."""
     async def get_by_id(self, person_id: UUID) -> Person | None:
         person = await super().get_by_id(person_id)
         if not person:
             return None
 
-        movies = await self.get_movies_with_person(person_id)
+        return await self.get_person_with_movies(person)
+
+    async def get_person_with_movies(self, person: Person) -> Person:
+        movies = await self._get_movies_with_person(person.id)
         if not movies:
             return person
 
-        roles = {}
         for movie in movies['hits']['hits']:
-            for role in ("actors", "writers", "directors"):
-                if str(person_id) in map(itemgetter('id'), movie['_source'][role]):
-                    if role not in roles:
-                        roles[role] = []
-                    roles[role].append(movie['_source']['id'])
-
-        if bool(roles):
-            person.roles = roles
+            for role, _ in person.roles:
+                if str(person.id) in map(itemgetter('id'), movie['_source'][f"{role}s"]):
+                    person.roles[role].append(movie['_source']['id'])
 
         return person
 
-    async def get_movies_with_person(self, person_id: UUID) -> list[dict[str, ...]] | None:
+    async def get_movies_with_person(self, person_id: UUID) -> FilmsList | None:
+        docs = await self._get_movies_with_person(person_id)
+        if not docs:
+            return None
+
+        return FilmsList(
+            count=docs['hits']['total']['value'],
+            results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
+        )
+
+    async def _get_movies_with_person(self, person_id: UUID) -> list[dict[str, ...]] | None:
         # Ищем все кинопроизведения с участием данной персоны во всех ролях
         query = {"bool": {"should": []}}
         for role in ("actors", "writers", "directors"):
@@ -52,9 +83,7 @@ class PersonService(NodeService):
                 }
             })
 
-        movies = await self._get_from_elastic(index="movies", query=query, size=1000)
-
-        return movies
+        return await self._get_from_elastic(index="movies", query=query, size=1000)
 
 
 @lru_cache()
