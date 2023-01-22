@@ -37,7 +37,7 @@ class FilmDetails(BaseModel):
 
 
 class Result(BaseModel):
-    search_after: list
+    next_page: str
     result: list[Film]
 
 
@@ -45,7 +45,7 @@ class Result(BaseModel):
 async def get_films(
     query: str = Query(default=..., min_length=3),
     per_page: int = Query(default=50, ge=10, le=100),
-    search_after: str = None,
+    search_after: str = Query(default=None, alias="page[next]"),
     film_service: FilmService = Depends(get_film_service),
 ):
     films, search_after = await film_service.search(query, per_page, search_after)
@@ -55,7 +55,7 @@ async def get_films(
         Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
         for film in films
     ]
-    return Result(search_after=search_after, result=films)
+    return Result(next_page=search_after, result=films)
 
 
 @router.get("/{film_id}", response_model=FilmDetails)
@@ -71,12 +71,12 @@ async def film_details(
 
 @router.get("", response_model=Result)
 async def get_films(
-    genre: str,
+    genre: str = None,
     # page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=10, le=100),
     sort_field: str = "imdb_rating",
     sort_order: str = "desc",
-    search_after: str = None,
+    search_after: str = Query(default=None, alias="page[next]"),
     film_service: FilmService = Depends(get_film_service),
 ):
     films, search_after = await film_service.get_films(
@@ -92,4 +92,4 @@ async def get_films(
         Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
         for film in films
     ]
-    return Result(search_after=search_after, result=films)
+    return Result(next_page=search_after, result=films)
