@@ -9,12 +9,16 @@ from db.elastic import get_elastic
 from db.redis import get_redis
 from models.film import Film
 
-FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5
+
+from enum import Enum
+
+
+class SortField(str, Enum):
+    IMDB_RATING = "imdb_rating"
 
 
 class FilmService:
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.redis = redis
         self.elastic = elastic
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
@@ -26,39 +30,50 @@ class FilmService:
 
     async def get_films(
         self,
-        sort_field="imdb_rating",
+        sort_field=SortField.IMDB_RATING,
         sort_order="desc",
-        genre="",
-        page=1,
+        genre=None,
         per_page=50,
-    ) -> list[Film]:
-        from_ = (page - 1) * per_page
+        search_after=None,
+    ) -> tuple[list[Film], str]:
         query = {
-            "from": from_,
             "size": per_page,
-            "query": {
-                "nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}
-            },
-            "sort": {sort_field: sort_order},
+            "sort": [{sort_field: sort_order}, {"id": sort_order}],
         }
+        if genre:
+            query["query"] = (
+                {"nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}},
+            )
+
+        if search_after:
+            query["search_after"] = search_after.split(",")
+
         try:
             doc = await self.elastic.search(index="movies", body=query)
         except NotFoundError:
             return None
-        return [Film(**film["_source"]) for film in doc["hits"]["hits"]]
+        hits = doc["hits"]["hits"]
+        search_after = ",".join(map(str, hits[-1]["sort"]))
+        return [(Film(**film["_source"])) for film in hits], search_after
 
-    async def search(self, query) -> list[Film]:
+    async def search(self, query, per_page, search_after) -> tuple[list[Film], list]:
         query = {
+            "size": per_page,
             "query": {
                 "multi_match": {"query": query, "fields": ["title^3", "description"]}
             },
-            "sort": {"imdb_rating": "desc"},
+            "sort": {"imdb_rating": "desc", "id": "desc"},
         }
+        if search_after:
+            query["search_after"] = search_after.split(",")
+
         try:
             doc = await self.elastic.search(index="movies", body=query)
         except NotFoundError:
             return None
-        return [Film(**film["_source"]) for film in doc["hits"]["hits"]]
+        hits = doc["hits"]["hits"]
+        search_after = ",".join(map(str, hits[-1]["sort"]))
+        return [(Film(**film["_source"])) for film in hits], search_after
 
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
         try:
@@ -66,17 +81,6 @@ class FilmService:
         except NotFoundError:
             return None
         return Film(**doc["_source"])
-
-    async def _film_from_cache(self, film_id: str) -> Optional[Film]:
-        data = await self.redis.get(film_id)
-        if not data:
-            return None
-
-        film = Film.parse_raw(data)
-        return film
-
-    async def _put_film_to_cache(self, film: Film):
-        await self.redis.set(film.id, film.json(), expire=FILM_CACHE_EXPIRE_IN_SECONDS)
 
 
 @lru_cache()
