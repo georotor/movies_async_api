@@ -10,6 +10,13 @@ from db.redis import get_redis
 from models.film import Film
 
 
+from enum import Enum
+
+
+class SortField(str, Enum):
+    IMDB_RATING = "imdb_rating"
+
+
 class FilmService:
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         self.elastic = elastic
@@ -23,19 +30,21 @@ class FilmService:
 
     async def get_films(
         self,
-        sort_field="imdb_rating",
+        sort_field=SortField.IMDB_RATING,
         sort_order="desc",
-        genre="",
+        genre=None,
         per_page=50,
         search_after=None,
-    ) -> tuple[list[Film], list]:
+    ) -> tuple[list[Film], str]:
         query = {
             "size": per_page,
-            "query": {
-                "nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}
-            },
             "sort": [{sort_field: sort_order}, {"id": sort_order}],
         }
+        if genre:
+            query["query"] = (
+                {"nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}},
+            )
+
         if search_after:
             query["search_after"] = search_after.split(",")
 
@@ -44,7 +53,7 @@ class FilmService:
         except NotFoundError:
             return None
         hits = doc["hits"]["hits"]
-        search_after = hits[-1]["sort"]
+        search_after = ",".join(map(str, hits[-1]["sort"]))
         return [(Film(**film["_source"])) for film in hits], search_after
 
     async def search(self, query, per_page, search_after) -> tuple[list[Film], list]:
@@ -63,7 +72,7 @@ class FilmService:
         except NotFoundError:
             return None
         hits = doc["hits"]["hits"]
-        search_after = hits[-1]["sort"]
+        search_after = ",".join(map(str, hits[-1]["sort"]))
         return [(Film(**film["_source"])) for film in hits], search_after
 
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
