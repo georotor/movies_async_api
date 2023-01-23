@@ -14,33 +14,34 @@ class Genre(BaseModel):
     name: str
 
 
-@router.get("/search", response_model=list[Genre])
-async def get_genres(
-    query: str = Query(default=..., min_length=3),
-    genre_service: GenreService = Depends(get_genre_service),
-):
-    genres = await genre_service.search(query)
-    if not genres:
-        return []
-    return genres
+class GenreDetails(Genre):
+    films_count: int
+    description: str
 
 
-@router.get("/{genre_id}", response_model=Genre)
+class GenresList(BaseModel):
+    count: int
+    results: list[Genre]
+
+
+@router.get("/{genre_id}", response_model=GenreDetails)
 async def get_person_details(
     genre_id: UUID, genre_service: GenreService = Depends(get_genre_service)
-) -> Genre:
+) -> GenreDetails:
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genre not found")
 
-    return Genre(**genre.dict())
+    return GenreDetails(**genre.dict())
 
 
-@router.get("", response_model=list[Genre])
+@router.get("", response_model=GenresList)
 async def get_genres(
+    page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
+    page_number: int = Query(default=1, alias="page[number]", ge=1),
     genre_service: GenreService = Depends(get_genre_service),
-):
-    genres = await genre_service.get_genres()
+) -> GenresList:
+    genres = await genre_service.get_genres(size=page_size, page_number=page_number)
     if not genres:
-        return []
-    return genres
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genre not found")
+    return GenresList(**genres.dict())
