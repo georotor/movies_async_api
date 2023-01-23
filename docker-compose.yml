@@ -1,12 +1,5 @@
 version: '3'
 services:
-  elastic:
-    image: elasticsearch:7.17.8
-    environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms1000m -Xmx1000m
-    ports:
-      - 9200:9200
   db:
     image: postgres:13
     volumes:
@@ -16,21 +9,65 @@ services:
       - 5432
     env_file:
       - ./.env.db
-    depends_on:
-      - elastic
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U app -d movies_database'"]
+      interval: 2s
+      timeout: 5s
+      retries: 120
+  elastic:
+    image: elasticsearch:7.17.8
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1000m -Xmx1000m
+    expose:
+      - 9200
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:9200 | grep -q 'HTTP/1.1 200 OK'"]
+      interval: 2s
+      timeout: 5s
+      retries: 120
   redis:
     image: redis:7.0.7
-    ports:
-      - 6379:6379
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 120
   etl:
-    # build: .
-    image: etl_arthur:latest
-    container_name: etl
+    build: git@github.com:georotor/new_admin_panel_sprint_3.git#main
     env_file:
       - ./.env
       - ./.env.db
     depends_on:
+      db:
+        condition: service_healthy
       elastic:
         condition: service_healthy
+  api:
+    build: .
+    environment:
+      - REDIS_HOST=redis
+      - ELASTIC_HOST=elastic
+    expose:
+      - 8000
+    depends_on:
+      elastic:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  nginx:
+    image: nginx:1.23.2
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - 80:80
+    depends_on:
+      - api
 volumes:
+  elastic_data:
   postgres_data:
