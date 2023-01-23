@@ -17,3 +17,12 @@ class Genre(BaseModel):
     class Config:
         json_loads = orjson.loads
         json_dumps = orjson_dumps
+
+
+class GenresList(BaseModel):
+    count: int
+    results: list[Genre]
+
+    class Config:
+        json_loads = orjson.loads
+        json_dumps = orjson_dumps
