@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from uuid import UUID
+from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -41,6 +42,15 @@ class Result(BaseModel):
     result: list[Film]
 
 
+class SortField(str, Enum):
+    IMDB_RATING = "imdb_rating"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 @router.get("/search", response_model=Result)
 async def get_films(
     query: str = Query(default=..., min_length=3),
@@ -50,7 +60,7 @@ async def get_films(
 ):
     films, search_after = await film_service.search(query, per_page, search_after)
     if not films:
-        return []
+        return Result(next_page=search_after, result=[])
     films = [
         Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
         for film in films
@@ -74,8 +84,8 @@ async def get_films(
     genre: str = None,
     # page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=10, le=100),
-    sort_field: str = "imdb_rating",
-    sort_order: str = "desc",
+    sort_field: str = SortField.IMDB_RATING,
+    sort_order: str = SortOrder.DESC,
     search_after: str = Query(default=None, alias="page[next]"),
     film_service: FilmService = Depends(get_film_service),
 ):
