@@ -9,51 +9,44 @@ from db.elastic import get_elastic
 from db.redis import get_redis
 from models.genre import Genre
 
+from services.base import BaseService
+from pydantic import BaseModel
 
-class GenreService:
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.elastic = elastic
+
+class GenreService(BaseService):
+    def __init__(self, elastic: AsyncElasticsearch, model: BaseModel, index: str):
+        super().__init__(elastic=elastic)
+        self.model = model
+        self.index = index
 
     async def get_by_id(self, genre_id: str) -> Optional[Genre]:
-        genre = await self._get_genre_from_elastic(genre_id)
-        if not genre:
-            return None
+        genre = await super().get_by_id(genre_id)
 
         return genre
 
-    async def get_genres(
-        self,
-    ) -> list[Genre]:
+    async def get_genres(self, search_after=None) -> tuple[list[Genre], str]:
         query = {
             "size": 100,
+            "sort": [
+                {"id": "asc"},
+            ],
         }
-        try:
-            doc = await self.elastic.search(index="genres", body=query)
-        except NotFoundError:
-            return None
-        return [Genre(**genre["_source"]) for genre in doc["hits"]["hits"]]
+        result = await super().get_list(query=query, search_after=search_after)
+        return result
 
-    async def search(self, query) -> list[Genre]:
+    async def search(self, query, search_after) -> tuple[list[Genre], str]:
         query = {
             "query": {"match": {"name": {"query": query, "fuzziness": "AUTO"}}},
+            "sort": [
+                {"id": "asc"},
+            ],
         }
-        try:
-            doc = await self.elastic.search(index="genres", body=query)
-        except NotFoundError:
-            return None
-        return [Genre(**genre["_source"]) for genre in doc["hits"]["hits"]]
-
-    async def _get_genre_from_elastic(self, genre_id: str) -> Optional[Genre]:
-        try:
-            doc = await self.elastic.get("genres", genre_id)
-        except NotFoundError:
-            return None
-        return Genre(**doc["_source"])
+        result = await super().search(query=query, search_after=search_after)
+        return result
 
 
 @lru_cache()
 def get_genre_service(
-    redis: Redis = Depends(get_redis),
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> GenreService:
-    return GenreService(redis, elastic)
+    return GenreService(elastic, Genre, "genres")

@@ -14,15 +14,21 @@ class Genre(BaseModel):
     name: str
 
 
-@router.get("/search", response_model=list[Genre])
+class Result(BaseModel):
+    result: list[Genre]
+    next_page: str
+
+
+@router.get("/search", response_model=Result)
 async def get_genres(
     query: str = Query(default=..., min_length=3),
+    search_after: str = Query(default=None, alias="page[next]"),
     genre_service: GenreService = Depends(get_genre_service),
 ):
-    genres = await genre_service.search(query)
+    genres, search_after = await genre_service.search(query, search_after=search_after)
     if not genres:
-        return []
-    return genres
+        return Result(result=[], next_page=search_after)
+    return Result(result=genres, next_page=search_after)
 
 
 @router.get("/{genre_id}", response_model=Genre)
@@ -36,11 +42,12 @@ async def get_person_details(
     return Genre(**genre.dict())
 
 
-@router.get("", response_model=list[Genre])
+@router.get("", response_model=Result)
 async def get_genres(
     genre_service: GenreService = Depends(get_genre_service),
+    search_after: str = Query(default=None, alias="page[next]"),
 ):
-    genres = await genre_service.get_genres()
+    genres, search_after = await genre_service.get_genres(search_after=search_after)
     if not genres:
-        return []
-    return genres
+        return Result(result=[], next_page=search_after)
+    return Result(result=genres, next_page=search_after)
