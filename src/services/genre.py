@@ -14,13 +14,14 @@ from pydantic import BaseModel
 
 
 class GenreService(BaseService):
-    def __init__(self, elastic: AsyncElasticsearch, model: BaseModel, index: str):
+    model = Genre
+    index = "genres"
+
+    def __init__(self, elastic: AsyncElasticsearch):
         super().__init__(elastic=elastic)
-        self.model = model
-        self.index = index
 
     async def get_by_id(self, genre_id: str) -> Optional[Genre]:
-        genre = await super().get_by_id(genre_id)
+        genre = await self._get_by_id(genre_id)
 
         return genre
 
@@ -31,7 +32,7 @@ class GenreService(BaseService):
                 {"id": "asc"},
             ],
         }
-        result = await super().get_list(query=query, search_after=search_after)
+        result = await self._get_list(query=query, search_after=search_after)
         return result
 
     async def search(self, query, search_after) -> tuple[list[Genre], str]:
@@ -41,7 +42,7 @@ class GenreService(BaseService):
                 {"id": "asc"},
             ],
         }
-        result = await super().search(query=query, search_after=search_after)
+        result = await self._search(query=query, search_after=search_after)
         return result
 
 
@@ -49,4 +50,4 @@ class GenreService(BaseService):
 def get_genre_service(
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> GenreService:
-    return GenreService(elastic, Genre, "genres")
+    return GenreService(elastic)

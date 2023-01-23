@@ -14,13 +14,14 @@ from services.base import BaseService
 
 
 class PersonService(BaseService):
-    def __init__(self, elastic: AsyncElasticsearch, model: BaseModel, index: str):
+    model = Person
+    index = "persons"
+
+    def __init__(self, elastic: AsyncElasticsearch):
         super().__init__(elastic=elastic)
-        self.model = model
-        self.index = index
 
     async def get_by_id(self, person_id: str) -> Optional[Person]:
-        person = await super().get_by_id(person_id)
+        person = await self._get_by_id(person_id)
 
         return person
 
@@ -28,9 +29,7 @@ class PersonService(BaseService):
         self, per_page=50, search_after: str = None
     ) -> tuple[list[Person], str]:
         query = {"size": per_page, "sort": [{"id": "asc"}]}
-        persons = await super().get_list(
-            per_page=per_page, search_after=search_after, query=query
-        )
+        persons = await self._get_list(search_after=search_after, query=query)
         return persons
 
     async def search(
@@ -41,7 +40,7 @@ class PersonService(BaseService):
             "query": {"match": {"name": {"query": query, "fuzziness": "AUTO"}}},
             "sort": [{"id": "asc"}],
         }
-        result = await super().search(query=query, search_after=search_after)
+        result = await self._search(query=query, search_after=search_after)
         return result
 
     async def get_person_films(
@@ -78,4 +77,4 @@ class PersonService(BaseService):
 def get_person_service(
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(elastic, model=Person, index="persons")
+    return PersonService(elastic)
