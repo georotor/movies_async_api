@@ -15,7 +15,7 @@ class FilmService(NodeService):
         self.Node = Film
         self.index = 'movies'
 
-    async def search(self, query: str, page_number=1, size=10) -> FilmsList | None:
+    async def search(self, query: str, search_after: list | None = None, page_number=1, size=10) -> FilmsList | None:
         _query = {
             "bool": {
                 "should": [
@@ -25,24 +25,34 @@ class FilmService(NodeService):
             }
         }
 
-        docs = await self._get_from_elastic(query=_query, size=size, page_number=page_number)
+        _sort = [
+            {"_score": {"order": "desc"}},
+            {"id": {"order": "asc"}}
+        ]
+
+        docs = await self._get_from_elastic(query=_query, search_after=search_after,
+                                            sort=_sort, size=size, page_number=page_number)
         if not docs:
             return None
 
         return FilmsList(
             count=docs['hits']['total']['value'],
+            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
             results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
         )
 
-    async def get(self, sort: str | None, filter_genre: UUID | None, size: int = 10,
-                  page_number: int = 1) -> FilmsList | None:
-        sorting = [{"title.raw": "asc"}]
+    async def get(self, sort: str | None, search_after: list | None = None,
+                  filter_genre: UUID | None = None, size: int = 10, page_number: int = 1) -> FilmsList | None:
+        _sort = [
+            {"title.raw": "asc"},
+            {"id": "asc"}
+        ]
         if sort:
             match sort:
                 case "imdb_rating":
-                    sorting.insert(0, {"imdb_rating": "asc"})
+                    _sort.insert(0, {"imdb_rating": "asc"})
                 case "-imdb_rating":
-                    sorting.insert(0, {"imdb_rating": "desc"})
+                    _sort.insert(0, {"imdb_rating": "desc"})
 
         query = None
         if filter_genre:
@@ -55,12 +65,14 @@ class FilmService(NodeService):
                 }
             }
 
-        docs = await self._get_from_elastic(query=query, sort=sorting, size=size, page_number=page_number)
+        docs = await self._get_from_elastic(query=query, search_after=search_after,
+                                            sort=_sort, size=size, page_number=page_number)
         if not docs:
             return None
 
         return FilmsList(
             count=docs['hits']['total']['value'],
+            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
             results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
         )
 

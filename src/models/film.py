@@ -1,7 +1,9 @@
-import orjson
-from core.json import orjson_dumps
-from pydantic import BaseModel
 from uuid import UUID
+
+import orjson
+from pydantic import BaseModel
+
+from core.json import orjson_dumps
 
 
 class Genre(BaseModel):
@@ -39,6 +41,7 @@ class Film(BaseModel):
 
 class FilmsList(BaseModel):
     count: int
+    next: str | None
     results: list[Film]
 
     class Config:
