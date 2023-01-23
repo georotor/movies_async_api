@@ -1,8 +1,10 @@
+import binascii
 from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from orjson import JSONDecodeError
 
 from services.person import PersonService, get_person_service
 from api.v1.films import Film
@@ -10,69 +12,92 @@ from api.v1.films import Film
 router = APIRouter()
 
 
+class Roles(BaseModel):
+    actor: list[UUID]
+    writer: list[UUID]
+    director: list[UUID]
+
+
 class Person(BaseModel):
     id: UUID
     name: str
 
 
+class PersonDetails(Person):
+    roles: Roles
+
+
 class Result(BaseModel):
-    next_page: str
-    result: list[Person]
+    count: int
+    next: str | None
+    results: list[Person]
+
+
+class FilmResult(BaseModel):
+    count: int
+    results: list[Film]
 
 
 @router.get("/search", response_model=Result)
 async def get_persons(
     query: str = Query(default=..., min_length=3),
-    per_page: int = Query(default=50, ge=10, le=100),
-    search_after: str = Query(default=None, alias="page[next]"),
+    page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
+    page_next: str = Query(default=None, alias="page[next]"),
     person_service: PersonService = Depends(get_person_service),
 ):
-    persons, search_after = await person_service.search(query, per_page, search_after)
+
+    search_after = None
+    if page_next:
+        try:
+            search_after = await person_service.b64decode(page_next)
+        except (binascii.Error, JSONDecodeError):
+            raise HTTPException(status_code=422, detail="page[next] not valid")
+
+    persons = await person_service.search(query=query, size=page_size, search_after=search_after)
     if not persons:
-        return Result(next_page=search_after, result=[])
-    return Result(next_page=search_after, result=persons)
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
+
+    return Result(**persons.dict())
 
 
-class FilmResult(BaseModel):
-    next_page: str
-    films: list[Film]
+@router.get("/{person_id}/film", response_model=FilmResult, description="Список всех фильмов с персоной.")
+async def get_person_films(person_id: UUID, person_service: PersonService = Depends(get_person_service)) -> FilmResult:
+    movies = await person_service.get_movies_with_person(person_id)
+    if not movies:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
+
+    return FilmResult(**movies.dict())
 
 
-@router.get("/{person_id}/film", response_model=FilmResult)
-async def get_person_films(
-    person_id: UUID,
-    person_service: PersonService = Depends(get_person_service),
-    per_page: int = Query(default=50, ge=10, le=100),
-    search_after: str = Query(default=None, alias="page[next]"),
-):
-    films, search_after = await person_service.get_person_films(
-        person_id, per_page, search_after
-    )
-    if not films:
-        return FilmResult(next_page=search_after, films=[])
-    return FilmResult(next_page=search_after, films=films)
-
-
-@router.get("/{person_id}", response_model=Person)
+@router.get("/{person_id}", response_model=PersonDetails, description="Детальная информация по персоне.")
 async def get_person_details(
     person_id: UUID, person_service: PersonService = Depends(get_person_service)
-) -> Person:
+) -> PersonDetails:
+
     person = await person_service.get_by_id(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="person not found")
 
-    return Person(**person.dict())
+    return PersonDetails(**person.dict())
 
 
 @router.get("", response_model=Result)
 async def get_persons(
-    per_page: int = Query(default=50, ge=10, le=100),
-    search_after: str = Query(default=None, alias="page[next]"),
+    page_size: int = Query(default=50, ge=10, le=100, alias="page[size]"),
+    page_next: str = Query(default=None, alias="page[next]"),
     person_service: PersonService = Depends(get_person_service),
 ):
-    persons, search_after = await person_service.get_persons(
-        per_page=per_page, search_after=search_after
-    )
+
+    search_after = None
+    if page_next:
+        try:
+            search_after = await person_service.b64decode(page_next)
+        except (binascii.Error, JSONDecodeError):
+            raise HTTPException(status_code=422, detail="page[next] not valid")
+
+    persons = await person_service.get_persons(size=page_size, search_after=search_after)
     if not persons:
-        return Result(next_page=search_after, result=[])
-    return Result(next_page=search_after, result=persons)
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
+
+    return Result(**persons.dict())
+

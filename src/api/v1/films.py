@@ -12,12 +12,6 @@ from services.film import FilmService, get_film_service
 router = APIRouter()
 
 
-class Film(BaseModel):
-    id: str
-    title: str
-    imdb_rating: float
-
-
 class Genre(BaseModel):
     id: UUID
     name: str
@@ -28,10 +22,13 @@ class Person(BaseModel):
     name: str
 
 
-class FilmDetails(BaseModel):
-    id: UUID
+class Film(BaseModel):
+    id: str
     title: str
     imdb_rating: float
+
+
+class FilmDetails(Film):
     description: str
     genre: list[Genre]
     actors: list[Person]

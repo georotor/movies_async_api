@@ -1,101 +1,106 @@
 from functools import lru_cache
-from typing import Optional
+from uuid import UUID
+from operator import itemgetter
 
-from aioredis import Redis
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
 
 from db.elastic import get_elastic
-from db.redis import get_redis
-from models.person import Person
-from models.film import Film
+from models.person import Person, PersonDetails, PersonsList
+from models.film import Film, FilmsList
+from services.node import NodeService
 
 
-class PersonService:
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.elastic = elastic
+class PersonService(NodeService):
+    def __init__(self, elastic: AsyncElasticsearch):
+        super().__init__(elastic)
+        self.Node = PersonDetails
+        self.index = 'persons'
 
-    async def get_by_id(self, person_id: str) -> Optional[Person]:
-        person = await self._get_person_from_elastic(person_id)
+    async def get_by_id(self, person_id: UUID) -> PersonDetails | None:
+        # У персоны часть данных лежит в другом индексе, поэтому подменяем метод базового класса.
+        person = await super().get_by_id(person_id)
         if not person:
             return None
 
+        return await self.get_person_with_movies(person)
+
+    async def get_person_with_movies(self, person: PersonDetails) -> PersonDetails:
+        movies = await self._get_movies_with_person(person.id)
+        if not movies:
+            return person
+
+        for movie in movies['hits']['hits']:
+            for role, _ in person.roles:
+                if str(person.id) in map(itemgetter('id'), movie['_source'][f"{role}s"]):
+                    person.roles[role].append(movie['_source']['id'])
+
         return person
 
-    async def get_person_films(self, person_id: str, per_page: int, search_after: str) -> tuple[list[Film], str]:
-        query = {
-            "size": per_page,
-            "query": {
-                "bool": {
-                    "should": [
-                        { "nested": { "query": {"term": {"actors.id": person_id}}, "path": "actors", } },
-                        { "nested": { "query": {"term": {"writers.id": person_id}}, "path": "writers", } },
-                        { "nested": { "query": {"term": {"directors.id": person_id}}, "path": "directors", } },
-                    ]
+    async def get_movies_with_person(self, person_id: UUID) -> FilmsList | None:
+        docs = await self._get_movies_with_person(person_id)
+        if not docs:
+            return None
+
+        return FilmsList(
+            count=docs['hits']['total']['value'],
+            results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
+        )
+
+    async def _get_movies_with_person(self, person_id: UUID) -> dict[str, ...] | None:
+        # Ищем все кинопроизведения с участием данной персоны во всех ролях
+        query = {"bool": {"should": []}}
+        for role in ("actors", "writers", "directors"):
+            # Собираем запрос для поиска кинопроизведений
+            query["bool"]["should"].append({
+                "nested": {
+                    "query": {"term": {f"{role}.id": person_id}},
+                    "path": role
                 }
-            },
-            "sort": [
-                {"imdb_rating": "desc"},
-                {"id": "desc"}
-            ]
-        }
-        if search_after:
-            query["search_after"] = search_after.split(",")
+            })
 
-        try:
-            doc = await self.elastic.search(index="movies", body=query)
-        except NotFoundError:
+        return await self._get_from_elastic(index="movies", query=query, size=1000)
+
+    async def get_persons(self, size: int = 50, search_after: list | None = None) -> PersonsList | None:
+
+        _sort = [
+            {"name.raw": {"order": "asc"}},
+            {"id": {"order": "asc"}}
+        ]
+
+        docs = await self._get_from_elastic(search_after=search_after, size=size, sort=_sort)
+        if not docs:
             return None
-        hits = doc["hits"]["hits"]
-        search_after = ",".join(map(str, hits[-1].get("sort"))) or []
-        return [Film(**film["_source"]) for film in doc["hits"]["hits"]], search_after
 
-    async def get_persons(
-        self, per_page=50, search_after: str = None
-    ) -> tuple[list[Person], str]:
-        query = {"size": per_page, "sort": [{"id": "asc"}]}
-        if search_after:
-            query["search_after"] = search_after.split(",")
+        return PersonsList(
+            count=docs['hits']['total']['value'],
+            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
+            results=[Person(**doc['_source']) for doc in docs['hits']['hits']]
+        )
 
-        try:
-            doc = await self.elastic.search(index="persons", body=query)
-        except NotFoundError:
+    async def search(self, query, size: int = 50, search_after: list | None = None) -> PersonsList | None:
+        _query = {"match": {"name": {"query": query, "fuzziness": "AUTO"}}}
+
+        _sort = [
+            {"_score": {"order": "desc"}},
+            {"id": {"order": "asc"}}
+        ]
+
+        docs = await self._get_from_elastic(query=_query, search_after=search_after, size=size, sort=_sort)
+        if not docs:
             return None
-        hits = doc["hits"]["hits"]
-        search_after = ",".join(map(str, hits[-1].get("sort"))) or []
-        return [
-            Person(**person["_source"]) for person in doc["hits"]["hits"]
-        ], search_after
 
-    async def search(
-        self, query, per_page: int = 50, search_after: str = None
-    ) -> tuple[list[Person], str]:
-        query = {
-            "size": per_page,
-            "query": {"match": {"name": {"query": query, "fuzziness": "AUTO"}}},
-            "sort": [{"id": "asc"}],
-        }
-        if search_after:
-            query["search_after"] = search_after.split(",")
-        try:
-            doc = await self.elastic.search(index="persons", body=query)
-        except NotFoundError:
-            return None
-        hits = doc["hits"]["hits"]
-        search_after = ",".join(map(str, hits[-1].get("sort"))) or []
-        return [Person(**person["_source"]) for person in hits], search_after
+        person_list = PersonsList(
+            count=docs['hits']['total']['value'],
+            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
+            results=[Person(**doc['_source']) for doc in docs['hits']['hits']]
+        )
 
-    async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
-        try:
-            doc = await self.elastic.get("persons", person_id)
-        except NotFoundError:
-            return None
-        return Person(**doc["_source"])
+        return person_list
 
 
 @lru_cache()
 def get_person_service(
-    redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+        elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(redis, elastic)
+    return PersonService(elastic)
