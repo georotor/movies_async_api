@@ -20,7 +20,7 @@ class BaseService:
     def __init__(self, elastic: AsyncElasticsearch):
         self.elastic = elastic
 
-    async def get_by_id(self, id_: str) -> Optional[model]:
+    async def _get_by_id(self, id_: str) -> Optional[model]:
         try:
             doc = await self.elastic.get(self.index, id_)
         except NotFoundError:
@@ -32,7 +32,7 @@ class BaseService:
 
         return return_model
 
-    async def get_list(
+    async def _get_list(
         self,
         query,
         search_after=None,
@@ -49,7 +49,7 @@ class BaseService:
         search_after = ",".join(map(str, hits[-1]["sort"]))
         return [(self.model(**hit["_source"])) for hit in hits], search_after
 
-    async def search(self, query, search_after) -> tuple[list[model], str]:
+    async def _search(self, query, search_after) -> tuple[list[model], str]:
         if search_after:
             query["search_after"] = search_after.split(",")
 

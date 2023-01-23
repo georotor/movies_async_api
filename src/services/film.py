@@ -27,13 +27,14 @@ from pydantic import BaseModel
 
 
 class FilmService(BaseService):
-    def __init__(self, elastic: AsyncElasticsearch, model: BaseModel, index: str):
+    model = Film
+    index = "movies"
+
+    def __init__(self, elastic: AsyncElasticsearch):
         super().__init__(elastic=elastic)
-        self.model = model
-        self.index = index
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
-        film = await super().get_by_id(id_=film_id)
+        film = await self._get_by_id(id_=film_id)
         return film
 
     async def get_films(
@@ -53,7 +54,7 @@ class FilmService(BaseService):
                 {"nested": {"query": {"term": {"genre.id": genre}}, "path": "genre"}},
             )
 
-        films = await super().get_list(
+        films = await self._get_list(
             query=query,
             search_after=search_after,
         )
@@ -67,7 +68,7 @@ class FilmService(BaseService):
             },
             "sort": {"imdb_rating": "desc", "id": "desc"},
         }
-        result = await super().search(query=query, search_after=search_after)
+        result = await self._search(query=query, search_after=search_after)
         return result
 
 
@@ -75,4 +76,4 @@ class FilmService(BaseService):
 def get_film_service(
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
-    return FilmService(elastic, index="movies", model=Film)
+    return FilmService(elastic)
