@@ -1,8 +1,10 @@
+import binascii
 from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from orjson import JSONDecodeError
 
 from services.film import FilmService, get_film_service
 
@@ -41,21 +43,42 @@ class Result(BaseModel):
     result: list[Film]
 
 
-@router.get("/search", response_model=Result)
+class FilmsList(BaseModel):
+    count: int
+    next: str | None
+    results: list[Film]
+
+
+@router.get("/search", response_model=FilmsList)
 async def get_films(
     query: str = Query(default=..., min_length=3),
-    per_page: int = Query(default=50, ge=10, le=100),
-    search_after: str = Query(default=None, alias="page[next]"),
+    page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
+    page_number: int = Query(
+        default=1,
+        alias="page[number]",
+        ge=1,
+        description="Номер страницы, данным перебором можно получить не более 10000 документов"
+    ),
+    page_next: str | None = Query(
+        default=None,
+        alias="page[next]",
+        description="Токен (next) для получения следующей страницы, при использовании игнорируется page[number]"
+    ),
     film_service: FilmService = Depends(get_film_service),
-):
-    films, search_after = await film_service.search(query, per_page, search_after)
-    if not films:
-        return []
-    films = [
-        Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
-        for film in films
-    ]
-    return Result(next_page=search_after, result=films)
+) -> FilmsList:
+
+    search_after = None
+    if page_next:
+        try:
+            search_after = await film_service.b64decode(page_next)
+        except (binascii.Error, JSONDecodeError):
+            raise HTTPException(status_code=422, detail="page[next] not valid")
+
+    movies = await film_service.search(query=query, search_after=search_after, page_number=page_number, size=page_size)
+    if not movies:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
+
+    return FilmsList(**movies.dict())
 
 
 @router.get("/{film_id}", response_model=FilmDetails)

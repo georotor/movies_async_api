@@ -39,3 +39,13 @@ class Film(BaseModel):
     class Config:
         json_loads = orjson.loads
         json_dumps = orjson_dumps
+
+
+class FilmsList(BaseModel):
+    count: int
+    next: str | None
+    results: list[Film]
+
+    class Config:
+        json_loads = orjson.loads
+        json_dumps = orjson_dumps
