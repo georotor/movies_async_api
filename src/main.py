@@ -10,6 +10,8 @@ from api.v1 import films, persons, genres
 from core import config
 from core.logger import LOGGING
 from db import elastic, redis
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
 
 app = FastAPI(
     title=config.PROJECT_NAME,
@@ -21,7 +23,6 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup():
-    # redis.redis = await aioredis.create_redis_pool((config.REDIS_HOST, config.REDIS_PORT), minsize=10, maxsize=20)
     redis.redis = await aioredis.from_url(
         f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
         encoding="utf-8",
@@ -30,12 +31,12 @@ async def startup():
     elastic.es = AsyncElasticsearch(
         hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
     )
+    FastAPICache.init(RedisBackend(redis.redis), prefix="fast_api_cache")
 
 
 @app.on_event("shutdown")
 async def shutdown():
-    redis.redis.close()
-    await redis.redis.wait_closed()
+    await redis.redis.close()
     await elastic.es.close()
 
 
