@@ -23,8 +23,7 @@ class RedisManager(AbstractManager):
 
     async def put(self, cash_id, data):
         """Записываем данные в кэш."""
-        await self.redis.set(cash_id, data)
-        await self.redis.expire(cash_id, self.ttl)
+        await self.redis.setex(cash_id, self.ttl, data)
 
     async def delete(self, cash_id):
         """Удаляем данные."""
