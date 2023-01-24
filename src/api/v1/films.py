@@ -1,11 +1,12 @@
+from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
-from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi_cache.decorator import cache
 from pydantic import BaseModel
-
-from services.film import FilmService, get_film_service
+from src.core import config
+from src.services.film import FilmService, get_film_service
 
 router = APIRouter()
 
@@ -52,6 +53,7 @@ class SortOrder(str, Enum):
 
 
 @router.get("/search", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_films(
     query: str = Query(default=..., min_length=3),
     per_page: int = Query(default=50, ge=10, le=100),
@@ -69,6 +71,7 @@ async def get_films(
 
 
 @router.get("/{film_id}", response_model=FilmDetails)
+@cache(expire=config.CACHE_EXPIRE)
 async def film_details(
     film_id: UUID, film_service: FilmService = Depends(get_film_service)
 ) -> Film:
@@ -80,6 +83,7 @@ async def film_details(
 
 
 @router.get("", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_films(
     genre: str = None,
     # page: int = Query(default=1, ge=1),

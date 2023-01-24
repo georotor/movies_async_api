@@ -2,10 +2,11 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi_cache.decorator import cache
 from pydantic import BaseModel
-
-from services.person import PersonService, get_person_service
-from api.v1.films import Film
+from src.api.v1.films import Film
+from src.core import config
+from src.services.person import PersonService, get_person_service
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ class Result(BaseModel):
 
 
 @router.get("/search", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_persons(
     query: str = Query(default=..., min_length=3),
     per_page: int = Query(default=50, ge=10, le=100),
@@ -39,6 +41,7 @@ class FilmResult(BaseModel):
 
 
 @router.get("/{person_id}/film", response_model=FilmResult)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_person_films(
     person_id: UUID,
     person_service: PersonService = Depends(get_person_service),
@@ -54,6 +57,7 @@ async def get_person_films(
 
 
 @router.get("/{person_id}", response_model=Person)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_person_details(
     person_id: UUID, person_service: PersonService = Depends(get_person_service)
 ) -> Person:
@@ -65,6 +69,7 @@ async def get_person_details(
 
 
 @router.get("", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_persons(
     per_page: int = Query(default=50, ge=10, le=100),
     search_after: str = Query(default=None, alias="page[next]"),

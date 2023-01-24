@@ -2,9 +2,10 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi_cache.decorator import cache
 from pydantic import BaseModel
-
-from services.genre import GenreService, get_genre_service
+from src.core import config
+from src.services.genre import GenreService, get_genre_service
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ class Result(BaseModel):
 
 
 @router.get("/search", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_genres(
     query: str = Query(default=..., min_length=3),
     search_after: str = Query(default=None, alias="page[next]"),
@@ -32,6 +34,7 @@ async def get_genres(
 
 
 @router.get("/{genre_id}", response_model=Genre)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_person_details(
     genre_id: str, genre_service: GenreService = Depends(get_genre_service)
 ) -> Genre:
@@ -43,6 +46,7 @@ async def get_person_details(
 
 
 @router.get("", response_model=Result)
+@cache(expire=config.CACHE_EXPIRE)
 async def get_genres(
     genre_service: GenreService = Depends(get_genre_service),
     search_after: str = Query(default=None, alias="page[next]"),
