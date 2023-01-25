@@ -1,14 +1,14 @@
-import logging
-
 import aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
 
 from api.v1 import films, persons, genres
 from core import config
-from core.logger import LOGGING
+from core.json import JsonCoder
 from db import elastic, redis
 
 app = FastAPI(
@@ -21,11 +21,17 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup():
-    # redis.redis = await aioredis.create_redis_pool((config.REDIS_HOST, config.REDIS_PORT), minsize=10, maxsize=20)
     redis.redis = await aioredis.from_url(
         f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
-        encoding="utf-8",
+        encoding="utf8",
+        decode_responses=True,
         max_connections=20,
+    )
+    FastAPICache.init(
+        RedisBackend(redis.redis),
+        prefix="fastapi-cache",
+        coder=JsonCoder,
+        expire=config.CACHE_EXPIRE
     )
     elastic.es = AsyncElasticsearch(
         hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
@@ -34,13 +40,10 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    redis.redis.close()
-    await redis.redis.wait_closed()
+    await redis.redis.close()
     await elastic.es.close()
 
 
-# Подключаем роутер к серверу, указав префикс /v1/films
-# Теги указываем для удобства навигации по документации
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
 app.include_router(persons.router, prefix="/api/v1/persons", tags=["persons"])
 app.include_router(genres.router, prefix="/api/v1/genres", tags=["genres"])

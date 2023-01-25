@@ -1,7 +1,8 @@
 from functools import lru_cache
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
+from fastapi_cache.decorator import cache
 
 from db.elastic import get_elastic
 from models.genre import Genre, GenresList
@@ -14,6 +15,7 @@ class GenreService(NodeService):
         self.Node = Genre
         self.index = 'genres'
 
+    @cache()
     async def get_genres(self, size: int = 10, page_number: int = 1) -> GenresList | None:
         _sort = [
             {"name.raw": {"order": "asc"}},

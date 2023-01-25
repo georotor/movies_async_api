@@ -3,6 +3,7 @@ from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
+from fastapi_cache.decorator import cache
 
 from db.elastic import get_elastic
 from models.film import Film, FilmsList
@@ -15,6 +16,7 @@ class FilmService(NodeService):
         self.Node = Film
         self.index = 'movies'
 
+    @cache()
     async def get_films(self, sort: str | None, search_after: list | None = None,
                         filter_genre: UUID | None = None, size: int = 10, page_number: int = 1) -> FilmsList | None:
         _sort = [
@@ -45,6 +47,7 @@ class FilmService(NodeService):
             results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
         )
 
+    @cache()
     async def search(self, query: str, search_after: list | None = None, page_number=1, size=10) -> FilmsList | None:
         _query = {
             "bool": {

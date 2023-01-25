@@ -4,6 +4,7 @@ from operator import itemgetter
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
+from fastapi_cache.decorator import cache
 
 from db.elastic import get_elastic
 from models.person import Person, PersonDetails, PersonsList
@@ -17,6 +18,7 @@ class PersonService(NodeService):
         self.Node = PersonDetails
         self.index = 'persons'
 
+    @cache()
     async def get_by_id(self, person_id: UUID) -> PersonDetails | None:
         # У персоны часть данных лежит в другом индексе, поэтому подменяем метод базового класса.
         person = await super().get_by_id(person_id)
@@ -37,6 +39,7 @@ class PersonService(NodeService):
 
         return person
 
+    @cache()
     async def get_movies_with_person(self, person_id: UUID) -> FilmsList | None:
         docs = await self._get_movies_with_person(person_id)
         if not docs:
@@ -61,6 +64,7 @@ class PersonService(NodeService):
 
         return await self._get_from_elastic(index="movies", query=query, size=1000)
 
+    @cache()
     async def get_persons(self, size: int = 50, search_after: list | None = None) -> PersonsList | None:
 
         _sort = [
@@ -78,6 +82,7 @@ class PersonService(NodeService):
             results=[Person(**doc['_source']) for doc in docs['hits']['hits']]
         )
 
+    @cache()
     async def search(self, query, size: int = 50, search_after: list | None = None) -> PersonsList | None:
         _query = {"match": {"name": {"query": query, "fuzziness": "AUTO"}}}
 

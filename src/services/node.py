@@ -3,6 +3,7 @@ from base64 import urlsafe_b64encode, urlsafe_b64decode
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
+from fastapi_cache.decorator import cache
 from orjson import dumps, loads
 from pydantic import BaseModel
 
@@ -26,6 +27,7 @@ class NodeService:
         encoded = urlsafe_b64encode(dumps(obj)).decode()
         return encoded.rstrip("=")
 
+    @cache()
     async def get_by_id(self, node_id: UUID) -> Node | None:
         doc = await self._get_node_from_elastic(node_id)
         if not doc:
