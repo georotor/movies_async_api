@@ -75,7 +75,7 @@ async def get_films(
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return FilmsList(**movies.dict())
+    return FilmsList(**dict(movies))
 
 
 @router.get("/{film_id}", response_model=FilmDetails)
@@ -86,7 +86,7 @@ async def film_details(
     if not film:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
-    return FilmDetails(**film.dict())
+    return FilmDetails(**dict(film))
 
 
 @router.get("", response_model=FilmsList)
@@ -119,4 +119,4 @@ async def get_films(
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return FilmsList(**movies.dict())
+    return FilmsList(**dict(movies))

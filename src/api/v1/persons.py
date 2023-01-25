@@ -57,7 +57,7 @@ async def get_persons(
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
-    return Result(**persons.dict())
+    return Result(**dict(persons))
 
 
 @router.get("/{person_id}/film", response_model=FilmResult, description="Список всех фильмов с персоной.")
@@ -66,7 +66,7 @@ async def get_person_films(person_id: UUID, person_service: PersonService = Depe
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return FilmResult(**movies.dict())
+    return FilmResult(**dict(movies))
 
 
 @router.get("/{person_id}", response_model=PersonDetails, description="Детальная информация по персоне.")
@@ -78,7 +78,7 @@ async def get_person_details(
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="person not found")
 
-    return PersonDetails(**person.dict())
+    return PersonDetails(**dict(person))
 
 
 @router.get("", response_model=Result)
@@ -99,5 +99,5 @@ async def get_persons(
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
-    return Result(**persons.dict())
+    return Result(**dict(persons))
 

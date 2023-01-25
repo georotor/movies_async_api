@@ -25,14 +25,14 @@ class GenresList(BaseModel):
 
 
 @router.get("/{genre_id}", response_model=GenreDetails)
-async def get_person_details(
+async def get_genre_details(
     genre_id: UUID, genre_service: GenreService = Depends(get_genre_service)
 ) -> GenreDetails:
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genre not found")
 
-    return GenreDetails(**genre.dict())
+    return GenreDetails(**dict(genre))
 
 
 @router.get("", response_model=GenresList)
@@ -44,4 +44,4 @@ async def get_genres(
     genres = await genre_service.get_genres(size=page_size, page_number=page_number)
     if not genres:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genre not found")
-    return GenresList(**genres.dict())
+    return GenresList(**dict(genres))
