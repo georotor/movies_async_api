@@ -1,6 +1,9 @@
 # Проектное задание: Async API
 
+Репозиторий с Async API: https://github.com/georotor/Async_API_sprint_1
+
 В проекте используется ETL: https://github.com/georotor/new_admin_panel_sprint_3
+
 
 Для запуска потребуется два файла с переменными окружения:
 
