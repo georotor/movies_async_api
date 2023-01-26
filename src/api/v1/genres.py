@@ -2,14 +2,14 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 
+from models.node import Node
 from services.genre import GenreService, get_genre_service
 
 router = APIRouter()
 
 
-class Genre(BaseModel):
+class Genre(Node):
     id: UUID
     name: str
 
@@ -19,7 +19,7 @@ class GenreDetails(Genre):
     description: str
 
 
-class GenresList(BaseModel):
+class GenresList(Node):
     count: int
     results: list[Genre]
 

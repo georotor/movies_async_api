@@ -3,22 +3,23 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from orjson import JSONDecodeError
 
-from services.person import PersonService, get_person_service
 from api.v1.films import Film
+from models.node import Node
+from services.person import PersonService, get_person_service
+
 
 router = APIRouter()
 
 
-class Roles(BaseModel):
+class Roles(Node):
     actor: list[UUID]
     writer: list[UUID]
     director: list[UUID]
 
 
-class Person(BaseModel):
+class Person(Node):
     id: UUID
     name: str
 
@@ -27,18 +28,18 @@ class PersonDetails(Person):
     roles: Roles
 
 
-class Result(BaseModel):
+class PersonsResult(Node):
     count: int
     next: str | None
     results: list[Person]
 
 
-class FilmResult(BaseModel):
+class FilmsResult(Node):
     count: int
     results: list[Film]
 
 
-@router.get("/search", response_model=Result)
+@router.get("/search", response_model=PersonsResult)
 async def get_persons(
     query: str = Query(default=..., min_length=3),
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
@@ -57,16 +58,16 @@ async def get_persons(
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
-    return Result(**dict(persons))
+    return PersonsResult(**dict(persons))
 
 
-@router.get("/{person_id}/film", response_model=FilmResult, description="Список всех фильмов с персоной.")
-async def get_person_films(person_id: UUID, person_service: PersonService = Depends(get_person_service)) -> FilmResult:
+@router.get("/{person_id}/film", response_model=FilmsResult, description="Список всех фильмов с персоной.")
+async def get_person_films(person_id: UUID, person_service: PersonService = Depends(get_person_service)) -> FilmsResult:
     movies = await person_service.get_movies_with_person(person_id)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
-    return FilmResult(**dict(movies))
+    return FilmsResult(**dict(movies))
 
 
 @router.get("/{person_id}", response_model=PersonDetails, description="Детальная информация по персоне.")
@@ -81,7 +82,7 @@ async def get_person_details(
     return PersonDetails(**dict(person))
 
 
-@router.get("", response_model=Result)
+@router.get("", response_model=PersonsResult)
 async def get_persons(
     page_size: int = Query(default=50, ge=10, le=100, alias="page[size]"),
     page_next: str = Query(default=None, alias="page[next]"),
@@ -99,5 +100,5 @@ async def get_persons(
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
-    return Result(**dict(persons))
+    return PersonsResult(**dict(persons))
 
