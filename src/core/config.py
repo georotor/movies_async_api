@@ -1,11 +1,10 @@
-from logging import config as logging_config
+from pydantic import BaseModel, BaseSettings
 
-from pydantic import BaseSettings
 
-from core.logger import LOGGING
-
-# Применяем настройки логирования
-logging_config.dictConfig(LOGGING)
+class Logging(BaseModel):
+    level_root: str = 'INFO'
+    level_uvicorn: str = 'INFO'
+    level_console: str = 'DEBUG'
 
 
 class Settings(BaseSettings):
@@ -15,6 +14,10 @@ class Settings(BaseSettings):
     redis_host: str = 'localhost'
     redis_port: int = 6379
     cache_expire: int = 300
+    logging: Logging = Logging()
+
+    class Config:
+        env_nested_delimiter = '__'
 
 
 settings = Settings()

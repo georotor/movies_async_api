@@ -1,3 +1,5 @@
+from logging import config as logging_config
+
 import aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
@@ -8,8 +10,11 @@ from fastapi_cache.backends.redis import RedisBackend
 
 from api.v1 import films, persons, genres
 from core.config import settings
+from core.logger import LOGGING
 from core.json import JsonCoder
 from db import elastic, redis
+
+logging_config.dictConfig(LOGGING)
 
 app = FastAPI(
     title=settings.project_name,
