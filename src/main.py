@@ -7,12 +7,12 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
 from api.v1 import films, persons, genres
-from core import config
+from core.config import settings
 from core.json import JsonCoder
 from db import elastic, redis
 
 app = FastAPI(
-    title=config.PROJECT_NAME,
+    title=settings.project_name,
     docs_url="/api/openapi",
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
@@ -22,7 +22,7 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup():
     redis.redis = await aioredis.from_url(
-        f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
+        f"redis://{settings.redis_host}:{settings.redis_port}",
         encoding="utf8",
         decode_responses=True,
         max_connections=20,
@@ -31,10 +31,10 @@ async def startup():
         RedisBackend(redis.redis),
         prefix="fastapi-cache",
         coder=JsonCoder,
-        expire=config.CACHE_EXPIRE
+        expire=settings.cache_expire
     )
     elastic.es = AsyncElasticsearch(
-        hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
+        hosts=[f"{settings.elastic_host}:{settings.elastic_port}"]
     )
 
 
