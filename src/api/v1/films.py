@@ -4,25 +4,25 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from orjson import JSONDecodeError
 
+from models.node import Node
 from services.film import FilmService, get_film_service
 
 router = APIRouter()
 
 
-class Genre(BaseModel):
+class Genre(Node):
     id: UUID
     name: str
 
 
-class Person(BaseModel):
+class Person(Node):
     id: UUID
     name: str
 
 
-class Film(BaseModel):
+class Film(Node):
     id: str
     title: str
     imdb_rating: float
@@ -36,7 +36,7 @@ class FilmDetails(Film):
     directors: list[Person]
 
 
-class FilmsList(BaseModel):
+class FilmsList(Node):
     count: int
     next: str | None
     results: list[Film]

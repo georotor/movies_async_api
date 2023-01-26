@@ -1,14 +1,11 @@
 from uuid import UUID
 
-import orjson
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from models.node import Node
 
 
-def orjson_dumps(v, *, default):
-    return orjson.dumps(v, default=default).decode()
-
-
-class Roles(BaseModel):
+class Roles(Node):
     actor: list[UUID] = []
     writer: list[UUID] = []
     director: list[UUID] = []
@@ -16,33 +13,17 @@ class Roles(BaseModel):
     def __getitem__(self, item):
         return getattr(self, item)
 
-    class Config:
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
 
-
-class Person(BaseModel):
+class Person(Node):
     id: UUID
     name: str
 
-    class Config:
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
 
-
-class PersonDetails(Person):
+class PersonDetails(Person, Node):
     roles: Roles = Field(default_factory=Roles)
 
-    class Config:
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
 
-
-class PersonsList(BaseModel):
+class PersonsList(Node):
     count: int
     next: str | None
     results: list[Person]
-
-    class Config:
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
