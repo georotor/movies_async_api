@@ -50,24 +50,22 @@ def make_get_request(session):
 
 @pytest.fixture(scope='session')
 async def es_client():
-    client = AsyncElasticsearch(hosts=test_settings.elastic_host,
-                                validate_cert=False, use_ssl=False)
+    client = AsyncElasticsearch(hosts=test_settings.elastic_host, validate_cert=False, use_ssl=False)
     yield client
     await client.close()
 
 
 @pytest.fixture(scope='session')
 def event_loop():
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest.fixture
 def es_write_data(es_client: AsyncElasticsearch):
-    async def inner(data: list[dict]):
-        bulk_query = get_es_bulk_query(data, test_settings.es_index, test_settings.es_id_field)
+    async def inner(data: list[dict], index: str, field_id: str):
+        bulk_query = get_es_bulk_query(data, index, field_id)
         str_query = '\n'.join(bulk_query) + '\n'
 
         response = await es_client.bulk(body=str_query, refresh=True)
