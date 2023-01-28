@@ -1,19 +1,12 @@
 import uuid
-
 import pytest
 
 
 @pytest.mark.parametrize(
     'query_data, expected_answer',
     [
-        (
-                {'query': 'The Star'},
-                {'status': 200, 'length': 10}
-        ),
-        (
-                {'query': 'Mashed potato'},
-                {'status': 200, 'length': 0}
-        )
+        ({'query': 'The Star'}, {'status': 200, 'length': 10}),
+        ({'query': 'Mashed potato'}, {'status': 200, 'length': 0})
     ]
 )
 @pytest.mark.asyncio
@@ -45,7 +38,7 @@ async def test_search(make_get_request, es_write_data, query_data, expected_answ
         ]
     } for _ in range(60)]
 
-    await es_write_data(es_data)
+    await es_write_data(data=es_data, index='movies', field_id='id')
 
     response = await make_get_request(url='/api/v1/films/search', params=query_data)
 
