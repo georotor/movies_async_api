@@ -1,25 +1,30 @@
-import datetime
 import uuid
-import json
 
-import aiohttp
 import pytest
 
-from elasticsearch import AsyncElasticsearch
 
-from tests.functional.settings import test_settings
-
-
+@pytest.mark.parametrize(
+    'query_data, expected_answer',
+    [
+        (
+                {'query': 'The Star'},
+                {'status': 200, 'length': 10}
+        ),
+        (
+                {'query': 'Mashed potato'},
+                {'status': 200, 'length': 0}
+        )
+    ]
+)
 @pytest.mark.asyncio
-async def test_search():
-    # 1. Генерируем данные для ES
-
+async def test_search(make_get_request, es_write_data, query_data, expected_answer):
+    # Генерируем данные для ES
     es_data = [{
         'id': str(uuid.uuid4()),
         'imdb_rating': 8.5,
         'genre': [
-            {'id':  str(uuid.uuid4()), 'name': 'Action'},
-            {'id':  str(uuid.uuid4()), 'name': 'Sci-Fi'}
+            {'id': str(uuid.uuid4()), 'name': 'Action'},
+            {'id': str(uuid.uuid4()), 'name': 'Sci-Fi'}
         ],
         'title': 'The Star',
         'description': 'New World',
@@ -27,49 +32,23 @@ async def test_search():
         'actors_names': ['Ann', 'Bob'],
         'writers_names': ['Ben', 'Howard'],
         'actors': [
-            {'id':  str(uuid.uuid4()), 'name': 'Ann'},
-            {'id':  str(uuid.uuid4()), 'name': 'Bob'}
+            {'id': str(uuid.uuid4()), 'name': 'Ann'},
+            {'id': str(uuid.uuid4()), 'name': 'Bob'}
         ],
         'writers': [
-            {'id':  str(uuid.uuid4()), 'name': 'Ben'},
-            {'id':  str(uuid.uuid4()), 'name': 'Howard'}
+            {'id': str(uuid.uuid4()), 'name': 'Ben'},
+            {'id': str(uuid.uuid4()), 'name': 'Howard'}
         ],
         'directors': [
-            {'id':  str(uuid.uuid4()), 'name': 'Jon'},
-            {'id':  str(uuid.uuid4()), 'name': 'Jane'}
+            {'id': str(uuid.uuid4()), 'name': 'Jon'},
+            {'id': str(uuid.uuid4()), 'name': 'Jane'}
         ]
     } for _ in range(60)]
 
-    bulk_query = []
-    for row in es_data:
-        bulk_query.extend([
-            json.dumps({'index': {'_index': test_settings.es_index, '_id': row[test_settings.es_id_field]}}),
-            json.dumps(row)
-        ])
+    await es_write_data(es_data)
 
-    str_query = '\n'.join(bulk_query) + '\n'
+    response = await make_get_request(url='/api/v1/films/search', params=query_data)
 
-    # 2. Загружаем данные в ES
-
-    es_client = AsyncElasticsearch(hosts=test_settings.elastic_host,
-                                   validate_cert=False,
-                                   use_ssl=False)
-    response = await es_client.bulk(str_query, refresh=True)
-    await es_client.close()
-    if response['errors']:
-        raise Exception('Ошибка записи данных в Elasticsearch')
-
-    # 3. Запрашиваем данные из ES по API
-
-    session = aiohttp.ClientSession()
-    url = test_settings.service_url + '/api/v1/films/search'
-    query_data = {'query': 'The Star'}
-    async with session.get(url, params=query_data) as response:
-        body = await response.json()
-        headers = response.headers
-        status = response.status
-    await session.close()
-
-    # 4. Проверяем ответ
-    assert status == 200
-    assert len(body['results']) == 10
+    # Проверяем ответ
+    assert response.status == expected_answer['status']
+    assert len(response.body['results']) == expected_answer['length']
