@@ -20,6 +20,13 @@ def get_es_bulk_query(data, es_index, es_id_field):
     return bulk_query
 
 
+async def get_data_from_file(fl: str) -> list[dict]:
+    # Можно сделать асинхронно через aiofiles, но зачем?
+    with open(f'tests/functional/testdata/{fl}', 'r', encoding='UTF-8') as file:
+        data = [json.loads(line) for line in file]
+    return data
+
+
 @dataclass
 class HTTPResponse:
     body: dict
@@ -62,7 +69,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def es_write_data(es_client: AsyncElasticsearch):
     async def inner(data: list[dict], index: str, field_id: str):
         bulk_query = get_es_bulk_query(data, index, field_id)
@@ -73,3 +80,21 @@ def es_write_data(es_client: AsyncElasticsearch):
         if response['errors']:
             raise Exception('Ошибка записи данных в Elasticsearch')
     return inner
+
+
+@pytest.fixture(scope='session')
+async def es_write_data_movies(es_write_data):
+    data = await get_data_from_file('movies.json')
+    await es_write_data(data=data, index='movies', field_id='id')
+
+
+@pytest.fixture(scope='session')
+async def es_write_data_persons(es_write_data):
+    data = await get_data_from_file('persons.json')
+    await es_write_data(data=data, index='persons', field_id='id')
+
+
+@pytest.fixture(scope='session')
+async def es_write_data_genres(es_write_data):
+    data = await get_data_from_file('genres.json')
+    await es_write_data(data=data, index='genres', field_id='id')
