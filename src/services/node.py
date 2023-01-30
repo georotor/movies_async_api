@@ -10,7 +10,7 @@ from db_managers.abstract_manager import AbstractDBManager
 
 
 class NodeService:
-    """Базовый класс для сервисов"""
+    """Базовый класс для сервисов."""
     Node = BaseModel
     index = None
 
@@ -19,22 +19,45 @@ class NodeService:
 
     @staticmethod
     async def b64decode(s: str) -> ...:
+        """Декодирование данных search_after полученных из URL."""
         padding = 4 - (len(s) % 4)
         s = s + ("=" * padding)
         return loads(urlsafe_b64decode(s))
 
     @staticmethod
     async def b64encode(obj: ...) -> str:
+        """Кодирование данных search_after для хранения в URL."""
         encoded = urlsafe_b64encode(dumps(obj)).decode()
         return encoded.rstrip("=")
 
     @cache()
-    async def get_by_id(self, node_id: UUID) -> Node | None:
+    async def get_by_id(self, node_id: UUID) -> Optional[Node]:
+        """Get запрос, должен возвращать один единственный объект.
+
+        Args:
+          node_id: уникальный идентификатор объекта;
+
+        Returns:
+            Экземпляр pydantic BaseModel с данными из БД.
+
+        """
         return await self.db_manager.get(self.index, node_id, self.Node)
 
     async def _get_from_elastic(
             self, query: dict
-    ) -> tuple[Optional[list[Node]], list]:
+    ) -> tuple[list[Optional[Node]], list]:
+        """Комплексный запрос в БД. Возвращает список объектов и значение
+        search_after.
+
+        Args:
+          query: сформированное тело запроса;
+
+        Returns:
+            Список моделей pydantic BaseModel с данными из БД и значение
+            search_after - стартовое значение для следующей выдачи (термин из
+            Elastic, но при желании можно реализовать и для SQL).
+
+        """
 
         res, search_after = await self.db_manager.search_all(
             self.index, self.Node, query
