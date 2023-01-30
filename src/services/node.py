@@ -1,11 +1,12 @@
-import logging
-from base64 import urlsafe_b64encode, urlsafe_b64decode
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from typing import Optional
 from uuid import UUID
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi_cache.decorator import cache
 from orjson import dumps, loads
 from pydantic import BaseModel
+
+from db_managers.abstract_manager import AbstractDBManager
 
 
 class NodeService:
@@ -13,8 +14,8 @@ class NodeService:
     Node = BaseModel
     index = None
 
-    def __init__(self, elastic: AsyncElasticsearch):
-        self.elastic = elastic
+    def __init__(self, db_manager: AbstractDBManager):
+        self.db_manager = db_manager
 
     @staticmethod
     async def b64decode(s: str) -> ...:
@@ -29,53 +30,14 @@ class NodeService:
 
     @cache()
     async def get_by_id(self, node_id: UUID) -> Node | None:
-        doc = await self._get_node_from_elastic(node_id)
-        if not doc:
-            return None
+        return await self.db_manager.get(self.index, node_id, self.Node)
 
-        return self.Node(**doc['_source'])
+    async def _get_from_elastic(
+            self, query: dict
+    ) -> tuple[Optional[list[Node]], list]:
 
-    async def _get_from_elastic(self, index: str | None = None, query: dict | None = None,
-                                search_after: list | None = None, sort: list | None = None,
-                                page_number=1, size=10) -> dict | None:
+        res, search_after = await self.db_manager.search_all(
+            self.index, self.Node, query
+        )
 
-        if not index:
-            index = self.index
-
-        body = {
-            "from": (page_number - 1) * size,
-            "size": size,
-            "query": {"match_all": {}}
-        }
-
-        if query:
-            body["query"] = query
-
-        if sort:
-            body["sort"] = sort
-
-            if search_after:
-                # search_after не работает без сортировки
-                del body["from"]
-                body["search_after"] = search_after
-
-                if len(sort) != len(search_after):
-                    logging.error("search_after has {0} value(s) but sort has {1}".format(
-                        len(search_after),
-                        len(sort)
-                    ))
-                    return None
-
-        try:
-            docs = await self.elastic.search(index=index, body=body)
-        except NotFoundError:
-            return None
-
-        return docs
-
-    async def _get_node_from_elastic(self, node_id: UUID) -> Node | None:
-        try:
-            doc = await self.elastic.get(self.index, node_id)
-        except NotFoundError:
-            return None
-        return doc
+        return res, search_after
