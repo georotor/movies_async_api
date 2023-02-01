@@ -75,7 +75,7 @@ class BoolQuery(AbstractQuery):
 
         """
         nested_rule = {"{}.{}".format(obj_name, obj_field): search}
-        rule = {"nested": {"query": {"term": nested_rule}, "path": "genre"}}
+        rule = {"nested": {"query": {"term": nested_rule}, "path": obj_name}}
 
         self._body["query"]["bool"][self.boolean_clause].append(rule)
 
