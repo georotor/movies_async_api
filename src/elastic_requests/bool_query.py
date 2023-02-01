@@ -39,7 +39,7 @@ class BoolQuery(AbstractQuery):
           boolean_clause: тип группы запросов;
 
         """
-        self.body = {"query": {"bool": {boolean_clause: []}}}
+        self._body = {"query": {"bool": {boolean_clause: []}}}
         self.boolean_clause = boolean_clause
 
     def add_search_condition(
@@ -60,7 +60,7 @@ class BoolQuery(AbstractQuery):
         if field_name:
             rule['default_field'] = field_name
 
-        self.body["query"]["bool"][self.boolean_clause].append(rule)
+        self._body["query"]["bool"][self.boolean_clause].append(rule)
 
     def insert_nested_query(self, search: Any, obj_name: str, obj_field: str):
         """Простое условие для поиска по вложенным (nested) объектам.
@@ -77,7 +77,7 @@ class BoolQuery(AbstractQuery):
         nested_rule = {"{}.{}".format(obj_name, obj_field): search}
         rule = {"nested": {"query": {"term": nested_rule}, "path": "genre"}}
 
-        self.body["query"]["bool"][self.boolean_clause].append(rule)
+        self._body["query"]["bool"][self.boolean_clause].append(rule)
 
 
 def must_query_factory(

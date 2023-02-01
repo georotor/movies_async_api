@@ -14,17 +14,21 @@ from typing import Any, Literal, Optional
 
 
 class AbstractQuery(ABC):
-    body = {'query': {'match_all': {}}}
+    _body = {'query': {'match_all': {}}}
+
+    @property
+    def body(self):
+        self._validate_body()
+        return self._body
 
     def _validate_body(self):
         """При использовании search_after дополнительное смещение не нужно."""
-        if 'search_after' in self.body and 'from' in self.body:
-            del self.body['from']
+        if 'search_after' in self._body and 'from' in self._body:
+            del self._body['from']
 
     def add_pagination(self, page_number=1, size=10):
-        self.body['size'] = size
-        self.body['from'] = (page_number - 1) * size
-        self._validate_body()
+        self._body['size'] = size
+        self._body['from'] = (page_number - 1) * size
 
     def add_sort(
             self,
@@ -35,10 +39,9 @@ class AbstractQuery(ABC):
         для следующей выдачи).
 
         """
-        self.body['sort'] = sort
+        self._body['sort'] = sort
         if search_after:
-            self.body['search_after'] = search_after
-            self._validate_body()
+            self._body['search_after'] = search_after
 
     @abstractmethod
     def add_search_condition(
