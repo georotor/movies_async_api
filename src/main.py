@@ -8,10 +8,10 @@ from fastapi.responses import ORJSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
-from api.v1 import films, persons, genres
+from api.v1 import films, genres, persons
 from core.config import settings
-from core.logger import LOGGING
 from core.json import JsonCoder
+from core.logger import LOGGING
 from db import elastic, redis
 
 logging_config.dictConfig(LOGGING)
