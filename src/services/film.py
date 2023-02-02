@@ -54,8 +54,7 @@ class FilmService(NodeService):
 
         """
 
-        if filter_genre:
-            related_data = {'genre.id': filter_genre}
+        related_data = {'genre.id': filter_genre} if filter_genre else None
 
         query_obj = must_query_factory(
             search_after=search_after,
