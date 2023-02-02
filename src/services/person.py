@@ -1,111 +1,195 @@
 from functools import lru_cache
+from typing import Optional
 from uuid import UUID
-from operator import itemgetter
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
 from fastapi_cache.decorator import cache
 
 from db.elastic import get_elastic
-from models.person import Person, PersonDetails, PersonsList
+from db_managers.abstract_manager import AbstractDBManager
+from db_managers.es_manager import ESDBManager
+from elastic_requests.bool_query import BoolQuery, must_query_factory
 from models.film import Film, FilmsList
+from models.person import PersonDetails, PersonsList, Roles
 from services.node import NodeService
 
 
 class PersonService(NodeService):
-    def __init__(self, elastic: AsyncElasticsearch):
-        super().__init__(elastic)
+    """Логика для обработки запросов со стороны API. Основная проблема - не
+    оптимальная структура данных в Elastic, при которой данные о персоне
+    разбросаны по нескольким индексам.
+
+    В прошлой версии кода метод get_by_id базового класса был переопределен.
+    После получения документа с данными о персоне выполнялся дополнительный
+    запрос в индекс с фильмами. Таким образом заполнялась информация о ролях.
+
+    Это не самое очевидное поведение - вместо одного ожидаемого запроса в БД
+    выполняется сразу несколько, даже когда никакая дополнительная информация
+    о персоне не требуется.
+
+    Если в будущем окажется, что эта информация нужна всегда - стоит просто
+    добавить ее в индекс персон в Elastic.
+
+    """
+    def __init__(self, db_manager: AbstractDBManager):
+        super().__init__(db_manager)
         self.Node = PersonDetails
         self.index = 'persons'
 
-    @cache()
-    async def get_by_id(self, person_id: UUID) -> PersonDetails | None:
-        # У персоны часть данных лежит в другом индексе, поэтому подменяем метод базового класса.
-        person = await super().get_by_id(person_id)
+    async def get_person_details(
+            self, person_id: UUID
+    ) -> Optional[PersonDetails]:
+        person = await self.get_by_id(person_id)
         if not person:
             return None
 
-        return await self.get_person_with_movies(person)
+        # костыль из-за работы кэша - он возвращает не датакласс, а словарь
+        # к размышлению: возможно удобнее будет кэшировать методы api?
+        person = self.Node(**person) if isinstance(person, dict) else person
 
-    async def get_person_with_movies(self, person: PersonDetails) -> PersonDetails:
-        movies = await self._get_movies_with_person(person.id)
-        if not movies:
-            return person
-
-        for movie in movies['hits']['hits']:
-            for role, _ in person.roles:
-                if str(person.id) in map(itemgetter('id'), movie['_source'][f"{role}s"]):
-                    person.roles[role].append(movie['_source']['id'])
-
+        roles = Roles.schema()['properties']
+        films = await self._get_films(roles, person_id)
+        person.roles = self._extract_roles(films, roles, person_id)
         return person
 
     @cache()
-    async def get_movies_with_person(self, person_id: UUID) -> FilmsList | None:
-        docs = await self._get_movies_with_person(person_id)
-        if not docs:
+    async def _get_films(
+            self, roles: list, person_id: UUID
+    ) -> list[Optional[Film]]:
+        """Получаем список фильмов, связанных с указанной персоной. Так как
+        искать приходиться сразу по нескольким категориям (у персоны могут быть
+        разные роли), то используем BoolQuery с boolean_clause='should'.
+
+        Args:
+          roles: список ролей персоны по которым будет производиться поиск;
+          person_id: уникальный идентификатор персоны.
+
+        """
+        query = BoolQuery(boolean_clause='should')
+        for role in roles:
+            query.insert_nested_query(person_id, '{}s'.format(role), 'id')
+        films, _ = await self.db_manager.search_all('movies', Film, query.body)
+        return films
+
+    @staticmethod
+    def _extract_roles(
+            films: [Optional[Film]], roles: list, person_id
+    ) -> Roles:
+        """Заполняем модель Roles, разбивая список фильмов по ролям персоны.
+
+        Args:
+          films: список фильмов;
+          roles: список интересующих ролей.
+
+        """
+        roles_data = {}
+        for film in films:
+            for role in roles:
+                staff = film.dict()['{}s'.format(role)]
+                if person_id in [man['id'] for man in staff]:
+                    roles_data.setdefault(role, set()).add(film.id)
+        return Roles(**roles_data)
+
+    @cache()
+    async def get_movies_with_person(
+            self, person_id: UUID
+    ) -> Optional[FilmsList]:
+        """Поиск фильмов в которых участвовала персона.
+
+        Args:
+          person_id: уникальный идентификатор персоны.
+
+        """
+        roles = Roles.schema()['properties']
+        movies = await self._get_films(roles, person_id)
+        if not movies:
             return None
 
         return FilmsList(
-            count=docs['hits']['total']['value'],
-            results=[Film(**doc['_source']) for doc in docs['hits']['hits']]
+            count=len(movies),
+            results=movies
         )
 
-    async def _get_movies_with_person(self, person_id: UUID) -> dict[str, ...] | None:
-        # Ищем все кинопроизведения с участием данной персоны во всех ролях
-        query = {"bool": {"should": []}}
-        for role in ("actors", "writers", "directors"):
-            # Собираем запрос для поиска кинопроизведений
-            query["bool"]["should"].append({
-                "nested": {
-                    "query": {"term": {f"{role}.id": person_id}},
-                    "path": role
-                }
-            })
-
-        return await self._get_from_elastic(index="movies", query=query, size=1000)
-
     @cache()
-    async def get_persons(self, size: int = 50, search_after: list | None = None) -> PersonsList | None:
+    async def get_persons(
+            self,
+            size: int = 50,
+            search_after: Optional[list] = None,
+    ) -> Optional[PersonsList]:
+        """Метод для получения списка персон. Сортировку добавляем отдельно
+        через query_obj.add_sort - она задана в виде списка, а фабрика
+        must_query_factory рассчитывает получить этот параметр в виде строки.
 
+        Args:
+          size: кол-во записей на странице (limit);
+          search_after: стартовое значение для следующей выдачи, не работает
+            без sort.
+
+        """
         _sort = [
             {"name.raw": {"order": "asc"}},
             {"id": {"order": "asc"}}
         ]
 
-        docs = await self._get_from_elastic(search_after=search_after, size=size, sort=_sort)
-        if not docs:
+        query_obj = must_query_factory(size=size, search_after=search_after)
+        query_obj.add_sort(_sort)
+
+        models, search_after = await self._get_from_elastic(
+            query=query_obj.body,
+        )
+
+        if not models:
             return None
 
         return PersonsList(
-            count=docs['hits']['total']['value'],
-            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
-            results=[Person(**doc['_source']) for doc in docs['hits']['hits']]
+            count=len(models),
+            next=await self.b64encode(search_after),
+            results=models
         )
 
     @cache()
-    async def search(self, query, size: int = 50, search_after: list | None = None) -> PersonsList | None:
-        _query = {"match": {"name": {"query": query, "fuzziness": "AUTO"}}}
+    async def search(
+            self,
+            search: str,
+            size: int = 10,
+            search_after: Optional[list] = None,
+            sort: str = '',
+            page_number: int = 1
+    ) -> Optional[PersonsList]:
+        """Метод для поиска персоны по ключевому слову.
 
-        _sort = [
-            {"_score": {"order": "desc"}},
-            {"id": {"order": "asc"}}
-        ]
+        Args:
+          search: строка с данными для поиска;
+          sort: строка с указанием поля сортировки: минус в начале строки
+            указывает на обратный порядок сортировки, пр. '-imdb_rating';
+          search_after: стартовое значение для следующей выдачи, не работает
+            без sort;
+          size: кол-во записей на странице (limit);
+          page_number: номер страницы.
 
-        docs = await self._get_from_elastic(query=_query, search_after=search_after, size=size, sort=_sort)
-        if not docs:
+        """
+        query_obj = must_query_factory(
+            search=search,
+            search_after=search_after,
+            sort=sort,
+            size=size,
+            page_number=page_number,
+        )
+        models, search_after = await self._get_from_elastic(query_obj.body)
+        if not models:
             return None
 
-        person_list = PersonsList(
-            count=docs['hits']['total']['value'],
-            next=await self.b64encode(docs['hits']['hits'][-1]["sort"]) if len(docs['hits']['hits']) == size else None,
-            results=[Person(**doc['_source']) for doc in docs['hits']['hits']]
+        return PersonsList(
+            count=len(models),
+            next=await self.b64encode(search_after),
+            results=models
         )
-
-        return person_list
 
 
 @lru_cache()
 def get_person_service(
-        elastic: AsyncElasticsearch = Depends(get_elastic),
+    elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(elastic)
+    es_db_manager = ESDBManager(elastic)
+    return PersonService(es_db_manager)
