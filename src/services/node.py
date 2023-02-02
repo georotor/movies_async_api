@@ -3,7 +3,7 @@ from base64 import urlsafe_b64encode, urlsafe_b64decode
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
-from fastapi_cache.decorator import cache
+from cache.pydantic_cache import pydantic_cache
 from orjson import dumps, loads
 from pydantic import BaseModel
 
@@ -16,6 +16,9 @@ class NodeService:
     def __init__(self, elastic: AsyncElasticsearch):
         self.elastic = elastic
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     @staticmethod
     async def b64decode(s: str) -> ...:
         padding = 4 - (len(s) % 4)
@@ -27,13 +30,21 @@ class NodeService:
         encoded = urlsafe_b64encode(dumps(obj)).decode()
         return encoded.rstrip("=")
 
-    @cache()
     async def get_by_id(self, node_id: UUID) -> Node | None:
-        doc = await self._get_node_from_elastic(node_id)
-        if not doc:
-            return None
+        """
+        Осуществляем вызов через вложенную функцию, чтобы можно было передать в декоратор модель self.Node
 
-        return self.Node(**doc['_source'])
+        :param node_id: ИД требуемого объекта
+        """
+        @pydantic_cache(model=self.Node)
+        async def inner(_self, _node_id: UUID):
+            doc = await _self._get_node_from_elastic(_node_id)
+            if not doc:
+                return None
+
+            return _self.Node(**doc['_source'])
+
+        return await inner(self, node_id)
 
     async def _get_from_elastic(self, index: str | None = None, query: dict | None = None,
                                 search_after: list | None = None, sort: list | None = None,
@@ -73,7 +84,7 @@ class NodeService:
 
         return docs
 
-    async def _get_node_from_elastic(self, node_id: UUID) -> Node | None:
+    async def _get_node_from_elastic(self, node_id: UUID) -> dict | None:
         try:
             doc = await self.elastic.get(self.index, node_id)
         except NotFoundError:
