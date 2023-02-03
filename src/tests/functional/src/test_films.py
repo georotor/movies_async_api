@@ -9,10 +9,18 @@ async def test_film(make_get_request, es_write_data_movies):
     assert response.status == 200
     assert response.body['id'] == film_id
     assert response.body['title'] == 'Saving Star Wars'
+
+
+@pytest.mark.asyncio
+async def test_film_notfound(make_get_request, es_write_data_movies):
     # Отсутствие фильма
     film_id = 'cadefb3c-948c-4363-9f34-864cbc6d00d0'
     response = await make_get_request(url=f'/films/{film_id}')
     assert response.status == 404
+
+
+@pytest.mark.asyncio
+async def test_film_valid_id(make_get_request, es_write_data_movies):
     # Валидацию id
     film_id = '000'
     response = await make_get_request(url=f'/films/{film_id}')
