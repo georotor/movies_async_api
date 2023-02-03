@@ -9,9 +9,10 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
 from api.v1 import films, persons, genres
+from cache.coder import JsonCoder
+from cache.key_builder import key_builder
 from core.config import settings
 from core.logger import LOGGING
-from core.json import JsonCoder
 from db import elastic, redis
 
 logging_config.dictConfig(LOGGING)
@@ -34,9 +35,10 @@ async def startup():
     )
     FastAPICache.init(
         RedisBackend(redis.redis),
-        prefix="fastapi-cache",
+        prefix="cache",
         coder=JsonCoder,
-        expire=settings.cache_expire
+        expire=settings.cache_expire,
+        key_builder=key_builder
     )
     elastic.es = AsyncElasticsearch(
         hosts=[f"{settings.elastic_host}:{settings.elastic_port}"]
