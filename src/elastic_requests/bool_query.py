@@ -56,9 +56,10 @@ class BoolQuery(AbstractQuery):
         query-dsl-query-string-query.html#query-string-top-level-params
 
         Для нечеткого (fuzzy) поиска, в конце строки search нужно добавить "~".
-        На данный момент стоит условие fuzziness = 2. В документации советуют
-        использовать auto, но оно странно работает с query из нескольких слов.
-        По "Georga~ Lucas~" результат будет, по "George~ Lucos~" нет.
+        В документации советуют установить значение fuzziness на auto, но это
+        позволяет обойти только простые опечатки. "George~ LucaZ~" - находит,
+        а "George~ LucOs~" - уже нет. Это можно решить, выставив fuzziness = 2,
+        но так заметно падает релевантность при поиске фильмов.
 
         Args:
           search: строка с данными для поиска;
@@ -66,7 +67,7 @@ class BoolQuery(AbstractQuery):
 
         """
         rule = {'query_string': {'query': search, 'default_operator': 'and'}}
-        rule['query_string']['fuzziness'] = '2'
+        rule['query_string']['fuzziness'] = 'auto'
         if field_name:
             rule['query_string']['fields'] = ['{}^5'.format(field_name), '*']
 
