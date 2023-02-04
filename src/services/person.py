@@ -120,9 +120,9 @@ class PersonService(NodeService):
             size: int = 50,
             search_after: Optional[list] = None,
     ) -> Optional[PersonsList]:
-        """Метод для получения списка персон. Сортировку добавляем отдельно
-        через query_obj.add_sort - она задана в виде списка, а фабрика
-        must_query_factory рассчитывает получить этот параметр в виде строки.
+        """Метод для получения списка персон. В сортировке указываем основное
+        поле ('name.raw'), дополнительная сортировка по id буде добавлена
+        фабрикой.
 
         Args:
           size: кол-во записей на странице (limit);
@@ -130,13 +130,10 @@ class PersonService(NodeService):
             без sort.
 
         """
-        _sort = [
-            {"name.raw": {"order": "asc"}},
-            {"id": {"order": "asc"}}
-        ]
 
-        query_obj = must_query_factory(size=size, search_after=search_after)
-        query_obj.add_sort(_sort)
+        query_obj = must_query_factory(
+            size=size, search_after=search_after, sort='name.raw'
+        )
 
         models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
@@ -179,7 +176,9 @@ class PersonService(NodeService):
             size=size,
             page_number=page_number,
         )
-        models, total, search_after = await self._get_from_elastic(query_obj.body)
+        models, total, search_after = await self._get_from_elastic(
+            query_obj.body
+        )
         if not models:
             return None
 

@@ -30,13 +30,9 @@ class GenreService(NodeService):
           page_number: номер страницы.
 
         """
-        _sort = [
-            {"name.raw": {"order": "asc"}},
-            {"id": {"order": "asc"}}
-        ]
-
-        query_obj = must_query_factory(size=size, page_number=page_number)
-        query_obj.add_sort(_sort)
+        query_obj = must_query_factory(
+            size=size, page_number=page_number, sort='name.raw'
+        )
 
         models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
