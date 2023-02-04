@@ -45,7 +45,7 @@ class NodeService:
 
     async def _get_from_elastic(
             self, query: dict
-    ) -> tuple[list[Optional[Node]], list]:
+    ) -> tuple[list[Optional[Node]], int, list]:
         """Комплексный запрос в БД. Возвращает список объектов и значение
         search_after.
 
@@ -53,14 +53,15 @@ class NodeService:
           query: сформированное тело запроса;
 
         Returns:
-            Список моделей pydantic BaseModel с данными из БД и значение
-            search_after - стартовое значение для следующей выдачи (термин из
-            Elastic, но при желании можно реализовать и для SQL).
+            Кортеж из трех значений:
+              - список моделей pydantic BaseModel с данными из БД;
+              - общее количество найденных записей (без учета пагинации);
+              - значение search_after (стартовое значение для следующей выдачи,
+                термин из Elastic, при желании можно реализовать и для SQL).
 
         """
-
-        res, search_after = await self.db_manager.search_all(
+        res, total, search_after = await self.db_manager.search_all(
             self.index, self.Node, query
         )
 
-        return res, search_after
+        return res, total, search_after

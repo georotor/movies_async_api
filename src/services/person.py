@@ -70,7 +70,9 @@ class PersonService(NodeService):
         query.add_pagination(page_number=1, size=10000)
         for role in roles:
             query.insert_nested_query(person_id, '{}s'.format(role), 'id')
-        films, _ = await self.db_manager.search_all('movies', Film, query.body)
+        films, _, _ = await self.db_manager.search_all(
+            'movies', Film, query.body
+        )
         return films
 
     @staticmethod
@@ -136,7 +138,7 @@ class PersonService(NodeService):
         query_obj = must_query_factory(size=size, search_after=search_after)
         query_obj.add_sort(_sort)
 
-        models, search_after = await self._get_from_elastic(
+        models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
         )
 
@@ -144,7 +146,7 @@ class PersonService(NodeService):
             return None
 
         return PersonsList(
-            count=len(models),
+            count=total,
             next=await self.b64encode(search_after),
             results=models
         )
@@ -177,12 +179,12 @@ class PersonService(NodeService):
             size=size,
             page_number=page_number,
         )
-        models, search_after = await self._get_from_elastic(query_obj.body)
+        models, total, search_after = await self._get_from_elastic(query_obj.body)
         if not models:
             return None
 
         return PersonsList(
-            count=len(models),
+            count=total,
             next=await self.b64encode(search_after),
             results=models
         )

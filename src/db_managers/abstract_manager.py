@@ -43,7 +43,7 @@ class AbstractDBManager(ABC):
             table_name: str,
             model: Type[BaseModel],
             query: Any,
-    ) -> tuple[list[Optional[BaseModel]], list]:
+    ) -> tuple[list[Optional[BaseModel]], int, list]:
         """Поиск по всем полям указанной таблицы (индекса). Возвращает список
         объектов и значение search_after.
 
@@ -53,8 +53,10 @@ class AbstractDBManager(ABC):
           query: сформированное тело запроса;
 
         Returns:
-            Список моделей pydantic BaseModel с данными из БД и значение
-            search_after - стартовое значение для следующей выдачи (термин из
-            Elastic, но при желании можно реализовать и для SQL).
+            Кортеж из трех значений:
+              - список моделей pydantic BaseModel с данными из БД;
+              - общее количество найденных записей (без учета пагинации);
+              - значение search_after (стартовое значение для следующей выдачи,
+                термин из Elastic, при желании можно реализовать и для SQL).
 
         """

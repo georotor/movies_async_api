@@ -64,7 +64,7 @@ class FilmService(NodeService):
             related_search=related_data,
         )
 
-        models, search_after = await self._get_from_elastic(
+        models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
         )
 
@@ -72,7 +72,7 @@ class FilmService(NodeService):
             return None
 
         return FilmsList(
-            count=len(models),
+            count=total,
             next=await self.b64encode(search_after),
             results=models
         )
@@ -106,12 +106,14 @@ class FilmService(NodeService):
             page_number=page_number,
         )
 
-        models, search_after = await self._get_from_elastic(query_obj.body)
+        models, total, search_after = await self._get_from_elastic(
+            query_obj.body
+        )
         if not models:
             return None
 
         return FilmsList(
-            count=len(models),
+            count=total,
             next=await self.b64encode(search_after),
             results=models
         )

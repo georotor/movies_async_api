@@ -38,14 +38,14 @@ class GenreService(NodeService):
         query_obj = must_query_factory(size=size, page_number=page_number)
         query_obj.add_sort(_sort)
 
-        models, search_after = await self._get_from_elastic(
+        models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
         )
 
         if not models:
             return None
 
-        return GenresList(count=len(models), results=models)
+        return GenresList(count=total, results=models)
 
 
 @lru_cache()

@@ -48,7 +48,7 @@ class ESDBManager(AbstractDBManager):
             table_name: str,
             model: Type[BaseModel],
             query: dict
-    ) -> tuple[list[Optional[BaseModel]], list]:
+    ) -> tuple[list[Optional[BaseModel]], int, list]:
         """Реализация абстрактного метода. Поиск по всем полям указанного
         индекса. Возвращает список объектов и значение search_after.
 
@@ -62,9 +62,11 @@ class ESDBManager(AbstractDBManager):
           query: сформированное тело запроса.
 
         Returns:
-            Список моделей pydantic BaseModel с данными из БД и значение
-            search_after - стартовое значение для следующей выдачи, не работает
-            без sort.
+            Кортеж из трех значений:
+              - список моделей pydantic BaseModel с данными из БД;
+              - общее количество найденных записей (без учета пагинации);
+              - значение search_after (стартовое значение для следующей выдачи,
+                термин из Elastic, при желании можно реализовать и для SQL).
 
         """
         try:
@@ -73,10 +75,11 @@ class ESDBManager(AbstractDBManager):
             if hits:
                 models = [model.parse_obj(doc['_source']) for doc in hits]
                 search_after = docs['hits']['hits'][-1].get("sort", [])
-                return models, search_after
-            return [], []
+                total = docs['hits']['total']['value']
+                return models, total, search_after
+            return [], 0, []
 
         except NotFoundError:
-            return [], []
+            return [], 0, []
         except ElasticsearchException as e:
             raise DBManagerError('ElasticsearchException: {}'.format(e))
