@@ -84,16 +84,38 @@ class BoolQuery(AbstractQuery):
           obj_field: поле вложенного (nested) объекта;
 
         """
-        nested_rule = {"{}.{}".format(obj_name, obj_field): search}
+        nested_rule = {'{}.{}'.format(obj_name, obj_field): search}
         rule = {'nested': {'query': {'term': nested_rule}, 'path': obj_name}}
 
         self._body['query']['bool'][self.boolean_clause].append(rule)
 
 
+def sort_factory(sort: str, default_sort: Optional[dict] = None) -> list[dict]:
+    """Фабрика для создания сортировки. Учитывая повсеместное использование
+    search_after, сортировка требует отдельного внимания. Нужно убедиться, что
+    в условиях присутствует хотя бы одно уникальной поле. В нашем случае id.
+
+    Args:
+      sort: строка с указанием поля сортировки в стиле Django: минус в начале
+        строки указывает на обратный порядок сортировки, пр. '-imdb_rating';
+      default_sort: правило сортировки с уникальным полем.
+
+    """
+    default_sort = default_sort or {'id': {'order': 'asc'}}
+    if sort:
+        sort_ = [{sort.lstrip('-'): 'desc' if sort.startswith('-') else 'asc'}]
+        if "id" not in sort:
+            sort_.append(default_sort)
+    else:
+        sort_ = default_sort
+    return sort_
+
+
 def must_query_factory(
     search: Optional[str] = None,
+    default_field: Optional[str] = None,
     search_after: Optional[list] = None,
-    sort: Optional[str] = None,
+    sort: str = 'id',
     size: Optional[int] = None,
     page_number: Optional[int] = None,
     related_search: Optional[dict[str, str | UUID]] = None,
@@ -107,8 +129,12 @@ def must_query_factory(
     Так как в данном случае используется нечеткий поиск, в конце каждого слова
     добавляем знак "~".
 
+    Так как практически везде используется параметр search_after, в запросе
+    обязательно должна быть сортировка по уникальному полю - в нашем случае id.
+
     Args:
       search: строка с данными для поиска;
+      default_field: строка с названием приоритетного поля для поиска;
       search_after: стартовое значение для следующей выдачи, не работает
         без sort;
       sort: строка с указанием поля сортировки в стиле Django: минус в начале
@@ -129,10 +155,10 @@ def must_query_factory(
         query.add_pagination(page_number, size)
     if search:
         search = ' '.join(['{}~'.format(x) for x in search.split()])
-        query.add_search_condition(search, '')
-    if sort:
-        sort_ = [{sort.lstrip('-'): 'desc' if sort.startswith('-') else 'asc'}]
-        query.add_sort(sort_, search_after)
+        query.add_search_condition(search, default_field)
+
+    sort_ = sort_factory(sort)
+    query.add_sort(sort_, search_after)
 
     if related_search:
         for search_path, search_string in related_search.items():
