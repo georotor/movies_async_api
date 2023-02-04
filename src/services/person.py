@@ -53,7 +53,7 @@ class PersonService(NodeService):
         person.roles = self._extract_roles(films, roles, person_id)
         return person
 
-    @cache()
+    # todo: вернуть @cache() после переделки кэша, сейчас он возвращает строку
     async def _get_films(
             self, roles: list, person_id: UUID
     ) -> list[Optional[Film]]:
