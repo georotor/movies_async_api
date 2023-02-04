@@ -100,6 +100,7 @@ class FilmService(NodeService):
         """
         query_obj = must_query_factory(
             search=search,
+            default_field='title',
             search_after=search_after,
             sort=sort,
             size=size,
