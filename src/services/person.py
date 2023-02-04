@@ -67,6 +67,7 @@ class PersonService(NodeService):
 
         """
         query = BoolQuery(boolean_clause='should')
+        query.add_pagination(page_number=1, size=10000)
         for role in roles:
             query.insert_nested_query(person_id, '{}s'.format(role), 'id')
         films, _ = await self.db_manager.search_all('movies', Film, query.body)
