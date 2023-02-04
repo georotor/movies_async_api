@@ -73,7 +73,7 @@ def make_get_request(session):
         :return: Ответ в виде HTTPResponse объекта.
         """
         params = params or {}
-        url = test_settings.service_url + test_settings.api_url + url
+        url = test_settings.service_url + url
         async with session.get(url, params=params) as response:
             return HTTPResponse(
                 body=await response.json(),
