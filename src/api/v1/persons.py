@@ -47,7 +47,7 @@ class PersonsSorting(str, Enum):
 @router.get("/search", response_model=PersonsResult)
 async def get_persons(
     sort: PersonsSorting = PersonsSorting.asc,
-    search: str = Query(default=..., min_length=3),
+    text: str = Query(default=..., min_length=3),
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
     page_next: str = Query(default=None, alias="page[next]"),
     person_service: PersonService = Depends(get_person_service),
@@ -59,7 +59,7 @@ async def get_persons(
         except (binascii.Error, JSONDecodeError):
             raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    persons = await person_service.search(search=search, size=page_size, search_after=search_after, sort=sort)
+    persons = await person_service.search(search=text, size=page_size, search_after=search_after, sort=sort)
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 

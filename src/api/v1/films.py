@@ -49,7 +49,7 @@ class FilmsSorting(str, Enum):
 
 @router.get("/search", response_model=FilmsList)
 async def get_films(
-        search: str = Query(default=..., min_length=3),
+        text: str = Query(default=..., min_length=3),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
         page_number: int = Query(
             default=1,
@@ -71,7 +71,7 @@ async def get_films(
         except (binascii.Error, JSONDecodeError):
             raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    movies = await film_service.search(search=search, search_after=search_after, page_number=page_number, size=page_size)
+    movies = await film_service.search(search=text, search_after=search_after, page_number=page_number, size=page_size)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
