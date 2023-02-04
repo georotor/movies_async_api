@@ -39,28 +39,38 @@ class BoolQuery(AbstractQuery):
           boolean_clause: тип группы запросов;
 
         """
-        self._body = {"query": {"bool": {boolean_clause: []}}}
+        self._body = {'query': {'bool': {boolean_clause: []}}}
         self.boolean_clause = boolean_clause
 
     def add_search_condition(
             self, search: str, field_name: Optional[str] = None
     ):
-        """Простое условие на основе query_string. В будущем можно будет
-        добавить разные коэффициенты для разных полей (boosting).
+        """Простое условие на основе query_string. С параметрами по умолчанию
+        релевантность поиска оставляет желать лучшего. Нужно или указывать
+        default_field (тогда поиск будет вестись только по нему) или задать
+        коэффициенты полей (boosting) в списке "fields". Второй вариант мне
+        нравится больше - он позволяет добиться релевантных результатов не
+        ограничивая поиск одним единственным полем.
 
         https://www.elastic.co/guide/en/elasticsearch/reference/current/
         query-dsl-query-string-query.html#query-string-top-level-params
 
+        Для нечеткого (fuzzy) поиска, в конце строки search нужно добавить "~".
+        На данный момент стоит условие fuzziness = 2. В документации советуют
+        использовать auto, но оно странно работает с query из нескольких слов.
+        По "Georga~ Lucas~" результат будет, по "George~ Lucos~" нет.
+
         Args:
           search: строка с данными для поиска;
-          field_name: дефолтное поле для поиска, поддерживает маски (*);
+          field_name: основное поле для поиска, получит значение boosting ^5;
 
         """
-        rule = {"query_string": {"query": search}}
+        rule = {'query_string': {'query': search, 'default_operator': 'and'}}
+        rule['query_string']['fuzziness'] = '2'
         if field_name:
-            rule['default_field'] = field_name
+            rule['query_string']['fields'] = ['{}^5'.format(field_name), '*']
 
-        self._body["query"]["bool"][self.boolean_clause].append(rule)
+        self._body['query']['bool'][self.boolean_clause].append(rule)
 
     def insert_nested_query(self, search: Any, obj_name: str, obj_field: str):
         """Простое условие для поиска по вложенным (nested) объектам.
@@ -75,9 +85,9 @@ class BoolQuery(AbstractQuery):
 
         """
         nested_rule = {"{}.{}".format(obj_name, obj_field): search}
-        rule = {"nested": {"query": {"term": nested_rule}, "path": obj_name}}
+        rule = {'nested': {'query': {'term': nested_rule}, 'path': obj_name}}
 
-        self._body["query"]["bool"][self.boolean_clause].append(rule)
+        self._body['query']['bool'][self.boolean_clause].append(rule)
 
 
 def must_query_factory(
@@ -93,6 +103,9 @@ def must_query_factory(
     выполнять однотипные действия - формировать параметры сортировки, добавлять
     пагинацию, search_after и т.д. Имеет смысл вынести код в отдельную функцию,
     а не дублировать по нескольку раз для каждого сервиса.
+
+    Так как в данном случае используется нечеткий поиск, в конце каждого слова
+    добавляем знак "~".
 
     Args:
       search: строка с данными для поиска;
@@ -115,7 +128,8 @@ def must_query_factory(
     if page_number and size:
         query.add_pagination(page_number, size)
     if search:
-        query.add_search_condition(search)
+        search = ' '.join(['{}~'.format(x) for x in search.split()])
+        query.add_search_condition(search, '')
     if sort:
         sort_ = [{sort.lstrip('-'): 'desc' if sort.startswith('-') else 'asc'}]
         query.add_sort(sort_, search_after)
@@ -124,5 +138,4 @@ def must_query_factory(
         for search_path, search_string in related_search.items():
             obj, field = search_path.split('.')
             query.insert_nested_query(search_string, obj, field)
-
     return query
