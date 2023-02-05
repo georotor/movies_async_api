@@ -2,10 +2,10 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from typing import Optional
 from uuid import UUID
 
-from fastapi_cache.decorator import cache
 from orjson import dumps, loads
 from pydantic import BaseModel
 
+from cache.pydantic_cache import pydantic_cache
 from db_managers.abstract_manager import AbstractDBManager
 
 
@@ -30,9 +30,11 @@ class NodeService:
         encoded = urlsafe_b64encode(dumps(obj)).decode()
         return encoded.rstrip("=")
 
-    @cache()
+    # @cache()
     async def get_by_id(self, node_id: UUID) -> Optional[Node]:
-        """Get запрос, должен возвращать один единственный объект.
+        """Get запрос, должен возвращать один единственный объект. Осуществляем
+        вызов через вложенную функцию, чтобы можно было передать внутрь
+        декоратора модель self.Node.
 
         Args:
           node_id: уникальный идентификатор объекта;
@@ -41,7 +43,11 @@ class NodeService:
             Экземпляр pydantic BaseModel с данными из БД.
 
         """
-        return await self.db_manager.get(self.index, node_id, self.Node)
+        @pydantic_cache(model=self.Node)
+        async def inner(*args, **kwargs):
+            return await self.db_manager.get(*args, **kwargs)
+
+        return await inner(self.index, node_id, self.Node)
 
     async def _get_from_elastic(
             self, query: dict

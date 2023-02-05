@@ -2,8 +2,8 @@ from functools import lru_cache
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
-from fastapi_cache.decorator import cache
 
+from cache.pydantic_cache import pydantic_cache
 from db.elastic import get_elastic
 from db_managers.abstract_manager import AbstractDBManager
 from db_managers.es_manager import ESDBManager
@@ -19,7 +19,7 @@ class GenreService(NodeService):
         self.Node = Genre
         self.index = 'genres'
 
-    @cache()
+    @pydantic_cache(model=GenresList)
     async def get_genres(
             self, size: int = 10, page_number: int = 1
     ) -> GenresList | None:

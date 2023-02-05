@@ -4,8 +4,8 @@ from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
-from fastapi_cache.decorator import cache
 
+from cache.pydantic_cache import pydantic_cache
 from db.elastic import get_elastic
 from db_managers.abstract_manager import AbstractDBManager
 from db_managers.es_manager import ESDBManager
@@ -30,7 +30,7 @@ class FilmService(NodeService):
         self.Node = Film
         self.index = 'movies'
 
-    @cache()
+    @pydantic_cache(model=FilmsList)
     async def get_films(
             self,
             sort: str = '',
@@ -77,7 +77,7 @@ class FilmService(NodeService):
             results=models
         )
 
-    @cache()
+    @pydantic_cache(model=FilmsList)
     async def search(
             self,
             search: str,

@@ -4,8 +4,8 @@ from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import Depends
-from fastapi_cache.decorator import cache
 
+from cache.pydantic_cache import pydantic_cache
 from db.elastic import get_elastic
 from db_managers.abstract_manager import AbstractDBManager
 from db_managers.es_manager import ESDBManager
@@ -44,16 +44,11 @@ class PersonService(NodeService):
         if not person:
             return None
 
-        # костыль из-за работы кэша - он возвращает не датакласс, а словарь
-        # к размышлению: возможно удобнее будет кэшировать методы api?
-        person = self.Node(**person) if isinstance(person, dict) else person
-
         roles = Roles.schema()['properties']
         films = await self._get_films(roles, person_id)
         person.roles = self._extract_roles(films, roles, person_id)
         return person
 
-    # todo: вернуть @cache() после переделки кэша, сейчас он возвращает строку
     async def _get_films(
             self, roles: list, person_id: UUID
     ) -> list[Optional[Film]]:
@@ -94,7 +89,7 @@ class PersonService(NodeService):
                     roles_data.setdefault(role, set()).add(film.id)
         return Roles(**roles_data)
 
-    @cache()
+    @pydantic_cache(model=FilmsList)
     async def get_movies_with_person(
             self, person_id: UUID
     ) -> Optional[FilmsList]:
@@ -114,7 +109,7 @@ class PersonService(NodeService):
             results=movies
         )
 
-    @cache()
+    @pydantic_cache(model=PersonsList)
     async def get_persons(
             self,
             size: int = 50,
@@ -148,7 +143,7 @@ class PersonService(NodeService):
             results=models
         )
 
-    @cache()
+    @pydantic_cache(model=PersonsList)
     async def search(
             self,
             search: str,
