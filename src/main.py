@@ -8,7 +8,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
-from api.v1 import films, persons, genres
+from api.v1 import films, genres, persons
 from cache.coder import JsonCoder
 from cache.key_builder import key_builder
 from core.config import settings
@@ -35,7 +35,7 @@ async def startup():
     )
     FastAPICache.init(
         RedisBackend(redis.redis),
-        prefix="cache",
+        prefix="fastapi-cache",
         coder=JsonCoder,
         expire=settings.cache_expire,
         key_builder=key_builder

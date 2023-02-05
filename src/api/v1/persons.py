@@ -1,4 +1,5 @@
 import binascii
+from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
@@ -8,7 +9,6 @@ from orjson import JSONDecodeError
 from api.v1.films import Film
 from models.node import Node
 from services.person import PersonService, get_person_service
-
 
 router = APIRouter()
 
@@ -46,7 +46,6 @@ async def get_persons(
     page_next: str = Query(default=None, alias="page[next]"),
     person_service: PersonService = Depends(get_person_service),
 ):
-
     search_after = None
     if page_next:
         try:
@@ -54,7 +53,7 @@ async def get_persons(
         except (binascii.Error, JSONDecodeError):
             raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    persons = await person_service.search(query=query, size=page_size, search_after=search_after)
+    persons = await person_service.search(search=query, size=page_size, search_after=search_after, sort='name.raw')
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
@@ -75,7 +74,7 @@ async def get_person_details(
     person_id: UUID, person_service: PersonService = Depends(get_person_service)
 ) -> PersonDetails:
 
-    person = await person_service.get_by_id(person_id)
+    person = await person_service.get_person_details(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="person not found")
 

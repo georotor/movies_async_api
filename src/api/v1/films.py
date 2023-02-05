@@ -71,7 +71,7 @@ async def get_films(
         except (binascii.Error, JSONDecodeError):
             raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    movies = await film_service.search(query=query, search_after=search_after, page_number=page_number, size=page_size)
+    movies = await film_service.search(search=query, search_after=search_after, page_number=page_number, size=page_size)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
