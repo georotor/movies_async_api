@@ -1,0 +1,50 @@
+version: '3'
+services:
+  elastic:
+    image: elasticsearch:7.17.8
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1000m -Xmx1000m
+    ports:
+      - 9200:9200
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:9200 | grep -q 'HTTP/1.1 200 OK'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+  redis:
+    image: redis:7.0.7
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 120
+  api:
+    build: ../../../.
+    image: api-image
+    environment:
+      - REDIS_HOST=redis
+      - ELASTIC_HOST=elastic
+    ports:
+      - 8000:8000
+    depends_on:
+      elastic:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  tests:
+    image: api-image
+    environment:
+      - REDIS_HOST=redis
+      - ELASTIC_HOST=elastic
+      - ES_HOST=http://elastic:9200
+      - SERVICE_URL=http://api:8000
+    entrypoint: >
+      sh -c "./tests/functional/testdata/schema.sh
+      && pip3 install -r tests/functional/requirements.txt
+      && python3 -m pytest tests/functional/src"
+    depends_on:
+      - api
