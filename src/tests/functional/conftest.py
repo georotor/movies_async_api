@@ -1,9 +1,9 @@
 import asyncio
 import json
 from dataclasses import dataclass
-from typing import List
 
 import aiohttp
+import aioredis
 import pytest
 from elasticsearch import AsyncElasticsearch
 from multidict import CIMultiDictProxy
@@ -148,3 +148,19 @@ async def es_write_data_genres(es_write_data):
     """
     data = await get_data_from_file('genres.json')
     await es_write_data(data=data, index='genres', field_id='id')
+
+
+@pytest.fixture(scope='session')
+async def es_write_data_all(es_write_data_movies, es_write_data_persons, es_write_data_genres):
+    pass
+
+
+@pytest.fixture(scope='function')
+async def redis_client():
+    client = await aioredis.from_url(
+        f"redis://{test_settings.redis_host}:{test_settings.redis_port}",
+        encoding="utf8",
+        decode_responses=True
+    )
+    yield client
+    await client.close()
