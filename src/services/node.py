@@ -25,8 +25,10 @@ class NodeService:
         return loads(urlsafe_b64decode(s))
 
     @staticmethod
-    async def b64encode(obj: ...) -> str:
+    async def b64encode(obj: ...) -> str | None:
         """Кодирование данных search_after для хранения в URL."""
+        if obj is None:
+            return None
         encoded = urlsafe_b64encode(dumps(obj)).decode()
         return encoded.rstrip("=")
 
