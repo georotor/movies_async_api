@@ -49,7 +49,7 @@ async def startup():
     )
     FastAPICache.init(
         RedisBackend(redis.redis),
-        prefix="fastapi-cache",
+        prefix="cache",
         coder=JsonCoder,
         expire=settings.cache_expire,
         key_builder=key_builder

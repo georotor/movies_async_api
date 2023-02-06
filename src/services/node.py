@@ -17,6 +17,9 @@ class NodeService:
     def __init__(self, db_manager: AbstractDBManager):
         self.db_manager = db_manager
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     @staticmethod
     async def b64decode(s: str) -> ...:
         """Декодирование данных search_after полученных из URL."""
