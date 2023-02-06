@@ -98,18 +98,23 @@ def sort_factory(sort: str, default_sort: Optional[dict] = None) -> list[dict]:
 
     Args:
       sort: строка с указанием поля сортировки в стиле Django: минус в начале
-        строки указывает на обратный порядок сортировки, пр. '-imdb_rating';
+        строки указывает на обратный порядок сортировки, пр. '-imdb_rating',
+        допустимо перечисление полей через ',';
       default_sort: правило сортировки с уникальным полем.
 
     """
     default_sort = default_sort or {'id': {'order': 'asc'}}
+    _sort = []
     if sort:
-        sort_ = [{sort.lstrip('-'): 'desc' if sort.startswith('-') else 'asc'}]
-        if "id" not in sort:
-            sort_.append(default_sort)
+        for item in sort.split(','):
+            _sort.append({item.lstrip('-'): 'desc' if item.startswith('-') else 'asc'})
+        # TODO: проверить этот блок на правильную логику
+        if "id" not in sort.split(','):
+            _sort.append(default_sort)
     else:
-        sort_ = default_sort
-    return sort_
+        _sort = default_sort
+
+    return _sort
 
 
 def must_query_factory(
@@ -155,7 +160,7 @@ def must_query_factory(
     if page_number and size:
         query.add_pagination(page_number, size)
     if search:
-        search = ' '.join(['{}~'.format(x) for x in search.split()])
+        search = ' '.join(['{}'.format(x) for x in search.split()])
         query.add_search_condition(search, default_field)
 
     sort_ = sort_factory(sort)

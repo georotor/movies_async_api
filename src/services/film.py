@@ -53,6 +53,10 @@ class FilmService(NodeService):
           page_number: номер страницы.
 
         """
+        if sort:
+            sort = f'{sort},title.raw'
+        else:
+            sort = 'title.raw'
 
         related_data = {'genre.id': filter_genre} if filter_genre else None
 
@@ -67,9 +71,6 @@ class FilmService(NodeService):
         models, total, search_after = await self._get_from_elastic(
             query=query_obj.body,
         )
-
-        if not models:
-            return None
 
         return FilmsList(
             count=total,
@@ -98,6 +99,7 @@ class FilmService(NodeService):
           page_number: номер страницы.
 
         """
+        sort = '-_score'
         query_obj = must_query_factory(
             search=search,
             default_field='title',
@@ -110,8 +112,6 @@ class FilmService(NodeService):
         models, total, search_after = await self._get_from_elastic(
             query_obj.body
         )
-        if not models:
-            return None
 
         return FilmsList(
             count=total,

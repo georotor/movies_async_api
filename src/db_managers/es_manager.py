@@ -48,7 +48,7 @@ class ESDBManager(AbstractDBManager):
             table_name: str,
             model: Type[BaseModel],
             query: dict
-    ) -> tuple[list[Optional[BaseModel]], int, list]:
+    ) -> tuple[list[Optional[BaseModel]], int, list | None]:
         """Реализация абстрактного метода. Поиск по всем полям указанного
         индекса. Возвращает список объектов и значение search_after.
 
@@ -74,12 +74,12 @@ class ESDBManager(AbstractDBManager):
             hits = docs['hits']['hits']
             if hits:
                 models = [model.parse_obj(doc['_source']) for doc in hits]
-                search_after = docs['hits']['hits'][-1].get("sort", [])
+                search_after = docs['hits']['hits'][-1].get("sort", None)
                 total = docs['hits']['total']['value']
                 return models, total, search_after
-            return [], 0, []
+            return [], 0, None
 
         except NotFoundError:
-            return [], 0, []
+            return [], 0, None
         except ElasticsearchException as e:
             raise DBManagerError('ElasticsearchException: {}'.format(e))
