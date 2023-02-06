@@ -3,7 +3,7 @@ from logging import config as logging_config
 import aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import ORJSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
@@ -14,6 +14,7 @@ from cache.key_builder import key_builder
 from core.config import settings
 from core.logger import LOGGING
 from db import elastic, redis
+from db_managers.abstract_manager import DBManagerError
 
 logging_config.dictConfig(LOGGING)
 
@@ -23,6 +24,19 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
 )
+
+
+@app.exception_handler(DBManagerError)
+async def db_exception_handler(request: Request, exc: DBManagerError):
+    """Перехватываем ошибки в работе БД. Пока мы работаем с БД через одну из
+    реализаций AbstractDBManager это будет DBManagerError.
+
+    """
+    return ORJSONResponse(
+        status_code=422,
+        content={
+            "message": "DataBase error: {}".format(exc)},
+    )
 
 
 @app.on_event("startup")
