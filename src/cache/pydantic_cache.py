@@ -15,13 +15,15 @@ def pydantic_cache(
         namespace: Optional[str] = "",
 ):
     """
-    Декоратор для кэширования через fastapi-cache. Возвращает результат в виде Pydantic объекта.
+    Декоратор для кэширования через fastapi-cache.
+    Возвращает результат в виде Pydantic объекта или None.
 
     :param model: Pydantic класс для возвращаемого объекта.
     :param expire: Время жизни кэша.
     :param coder: Класс для кодирования кэша.
     :param key_builder: Функция построения ключа для кэша.
     :param namespace: Пространство имен для ключа кэша.
+    :return: None или объект класса model.
     """
     def wrapper(func):
         @wraps(func)
@@ -58,7 +60,9 @@ def pydantic_cache(
 
             if cache_value is not None:
                 decode_value = coder.decode(cache_value)
-                return model.parse_obj(decode_value)
+                if decode_value is not None:
+                    return model.parse_obj(decode_value)
+                return decode_value
 
             fresh_value = await func(*args, **kwargs)
             try:
