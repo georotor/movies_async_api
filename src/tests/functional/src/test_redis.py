@@ -2,6 +2,9 @@ import json
 import pytest
 
 
+pytestmark = pytest.mark.asyncio
+
+
 @pytest.mark.parametrize(
     'url, cache_key, inject_field, inject_value',
     [
@@ -61,7 +64,6 @@ import pytest
         ),
     ]
 )
-@pytest.mark.asyncio
 async def test_redis(redis_client, make_get_request, es_write_data_all, url, cache_key, inject_field, inject_value):
     """
     План тестирования:
