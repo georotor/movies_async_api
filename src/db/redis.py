@@ -1,4 +1,5 @@
-from aioredis import Redis
+from redis.asyncio.client import Redis
+
 
 redis: Redis | None = None
 

@@ -1,6 +1,6 @@
 from logging import config as logging_config
 
-import aioredis
+import redis.asyncio as aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI, Request
