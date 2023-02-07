@@ -6,7 +6,6 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_film(make_get_request, es_write_data_movies):
-    # Проверяем фильм
     film_id = 'cadefb3c-948c-4363-9f34-864cbc6d00d4'
     response = await make_get_request(url=f'/api/v1/films/{film_id}')
     assert response.status == HTTPStatus.OK
@@ -15,21 +14,18 @@ async def test_film(make_get_request, es_write_data_movies):
 
 
 async def test_film_notfound(make_get_request, es_write_data_movies):
-    # Отсутствие фильма
     film_id = 'cadefb3c-948c-4363-9f34-864cbc6d00d0'
     response = await make_get_request(url=f'/api/v1/films/{film_id}')
     assert response.status == HTTPStatus.NOT_FOUND
 
 
 async def test_film_valid_id(make_get_request, es_write_data_movies):
-    # Валидацию id
     film_id = '000'
     response = await make_get_request(url=f'/api/v1/films/{film_id}')
     assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 async def test_films(make_get_request, es_write_data_movies):
-    # Список фильмов
     response = await make_get_request(url=f'/api/v1/films')
     assert response.status == HTTPStatus.OK
     assert response.body['count'] == 999
@@ -47,7 +43,6 @@ async def test_films(make_get_request, es_write_data_movies):
     ]
 )
 async def test_films_sort(make_get_request, es_write_data_movies, params, answer):
-    # Сортировка фильмов
     response = await make_get_request(url=f'/api/v1/films', params=params)
     assert response.status == answer['status']
     assert response.body['results'][0]['id'] == answer['id']
@@ -69,7 +64,6 @@ async def test_films_sort(make_get_request, es_write_data_movies, params, answer
     ]
 )
 async def test_films_filter(make_get_request, es_write_data_movies, params, answer):
-    # Фильтр фильмов
     response = await make_get_request(url=f'/api/v1/films', params=params)
     assert response.status == answer['status']
     assert response.body['count'] == answer['count']
@@ -97,7 +91,7 @@ async def test_films_filter(make_get_request, es_write_data_movies, params, answ
           'results': 0})
     ]
 )
-async def test_films_sort(make_get_request, es_write_data_movies, params, answer):
+async def test_films_search(make_get_request, es_write_data_movies, params, answer):
     # Поиск фильмов
     response = await make_get_request(url=f'/api/v1/films/search', params=params)
     assert response.status == answer['status']

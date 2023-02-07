@@ -61,7 +61,6 @@ pytestmark = pytest.mark.asyncio
     ]
 )
 async def test_page_size(make_get_request, es_write_data_all, url, params, answer):
-    # Размер страницы
     response = await make_get_request(url=url, params=params)
     assert response.status == HTTPStatus.OK
     assert len(response.body['results']) == answer['results']
@@ -113,7 +112,6 @@ async def test_page_size(make_get_request, es_write_data_all, url, params, answe
     ]
 )
 async def test_page_number(make_get_request, es_write_data_all, url, params, answer):
-    # Номер страницы
     response = await make_get_request(url=url, params=params)
     assert response.status == HTTPStatus.OK
     assert len(response.body['results']) == answer['results']
@@ -152,7 +150,6 @@ async def test_page_number(make_get_request, es_write_data_all, url, params, ans
     ]
 )
 async def test_page_next(make_get_request, es_write_data_all, url, params, answer):
-    # Следующая страница
     response = await make_get_request(url=url, params=params)
     assert response.status == HTTPStatus.OK
     assert len(response.body['results']) == answer['results']
