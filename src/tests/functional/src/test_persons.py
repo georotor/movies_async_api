@@ -6,7 +6,6 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_person(make_get_request, es_write_data_persons, es_write_data_movies):
-    # Проверяем person
     person_id = "189f1d17-c928-492a-aa33-2212b5ad1555"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
     assert response.status == HTTPStatus.OK
@@ -15,21 +14,18 @@ async def test_person(make_get_request, es_write_data_persons, es_write_data_mov
 
 
 async def test_person_notfound(make_get_request, es_write_data_persons, es_write_data_movies):
-    # Отсутствие person
     person_id = "cadefb3c-948c-4363-9f34-864cbc6d00d0"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
     assert response.status == HTTPStatus.NOT_FOUND
 
 
 async def test_person_valid_id(make_get_request, es_write_data_persons, es_write_data_movies):
-    # Валидацию id
     person_id = "189f1d7-c92-49a-aa3-222b5ad1555"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
     assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 async def test_persons(make_get_request, es_write_data_persons):
-    # Список persons
     response = await make_get_request(url=f"/api/v1/persons")
     assert response.status == HTTPStatus.OK
     assert response.body["count"] == 4166
@@ -42,7 +38,6 @@ async def test_persons(make_get_request, es_write_data_persons):
 
 
 async def test_persons_next(make_get_request, es_write_data_persons):
-    # Список persons
     response = await make_get_request(url=f"/api/v1/persons")
     page_next = response.body["next"]
 
