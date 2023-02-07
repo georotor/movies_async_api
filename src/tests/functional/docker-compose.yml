@@ -37,11 +37,8 @@ services:
         condition: service_healthy
   tests:
     image: api-image
-    environment:
-      - REDIS_HOST=redis
-      - ELASTIC_HOST=elastic
-      - ES_HOST=http://elastic:9200
-      - SERVICE_URL=http://api:8000
+    env_file:
+      - .env.tests
     entrypoint: >
       sh -c "./tests/functional/testdata/schema.sh
       && pip3 install -r tests/functional/requirements.txt

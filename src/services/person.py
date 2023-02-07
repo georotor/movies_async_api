@@ -113,6 +113,7 @@ class PersonService(NodeService):
     async def get_persons(
             self,
             size: int = 50,
+            page_number: int = 1,
             search_after: Optional[list] = None,
     ) -> Optional[PersonsList]:
         """Метод для получения списка персон. В сортировке указываем основное
@@ -127,7 +128,7 @@ class PersonService(NodeService):
         """
 
         query_obj = must_query_factory(
-            size=size, search_after=search_after, sort='name.raw'
+            size=size, page_number=page_number, search_after=search_after, sort='name.raw'
         )
 
         models, total, search_after = await self._get_from_elastic(

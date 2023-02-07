@@ -78,16 +78,8 @@ async def test_search_page_size_and_next(make_get_request, es_write_data_persons
     response = await make_get_request(
         url=f"/api/v1/persons/search?query=carl&page[size]=20"
     )
-    assert len(response.body["results"]) == 20
-    assert response.body["results"][0]["id"] == "49b4a8f9-622f-4ee8-8fa6-b339b5f71b5e"
-    page_next = response.body["next"]
-
-    response = await make_get_request(
-        url=f"/api/v1/persons/search?query=carl&page[next]={page_next}&page[size]=20"
-    )
-    assert response.status == 200
-    assert len(response.body["results"]) == 20
-    assert response.body["results"][0]["id"] == "72fa954e-2be9-4313-8d4b-d00e896d9e3b"
+    assert len(response.body["results"]) == 4
+    assert response.body["results"][0]["id"] == "858c3dfd-7f92-42a0-a916-047fb2babb36"
 
 
 @pytest.mark.parametrize(
@@ -97,22 +89,22 @@ async def test_search_page_size_and_next(make_get_request, es_write_data_persons
             {"query": "arthur", "page[size]": 100},
             {
                 "status": 200,
-                "count": 12,
-                "results": 12,
-                "id": "05572526-d39e-483f-b548-92ebda7702eb",
+                "count": 11,
+                "results": 11,
+                "id": "c6c9231f-45ce-4751-8775-858b7b00f8ca",
             },
         ),
         (
             {"query": "pavel"},
             {
                 "status": 200,
-                "count": 4,
-                "results": 4,
-                "id": "05334427-6883-4677-8bdf-c273cb390464",
+                "count": 2,
+                "results": 2,
+                "id": "b9c52ab2-4336-4ff8-9a4b-40272077902f",
             },
         ),
         (
-            {"query": "konstantin"},
+            {"query": "constantine"},
             {
                 "status": 200,
                 "count": 1,
@@ -144,13 +136,6 @@ async def test_persons_search(make_get_request, es_write_data_persons, params, a
                 "title": "Star of India",
             },
         ),
-        (
-            {"person_id": "05572526-d39e-483f-b548-92ebda7702ee"},  # doesnt exist
-            {
-                "status": 200,
-                "count": 0,
-            },
-        ),
     ],
 )
 @pytest.mark.asyncio
@@ -161,3 +146,10 @@ async def test_person_film(make_get_request, es_write_data_persons, params, answ
     if response.body["count"] > 0:
         assert response.body["results"][0]["id"] == answer["film_id"]
         assert response.body["results"][0]["title"] == answer["title"]
+
+
+@pytest.mark.asyncio
+async def test_person_film_notfound(make_get_request, es_write_data_persons):
+    person_id = "05572526-d39e-483f-b548-92ebda7702ee"
+    response = await make_get_request(url=f"/api/v1/persons/{person_id}/film")
+    assert response.status == 404

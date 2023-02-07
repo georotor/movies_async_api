@@ -85,6 +85,12 @@ async def get_person_details(
 async def get_persons(
     page_size: int = Query(default=50, ge=10, le=100, alias="page[size]"),
     page_next: str = Query(default=None, alias="page[next]"),
+    page_number: int = Query(
+        default=1,
+        alias="page[number]",
+        ge=1,
+        description="Номер страницы, данным перебором можно получить не более 10000 документов"
+    ),
     person_service: PersonService = Depends(get_person_service),
 ):
 
@@ -95,7 +101,7 @@ async def get_persons(
         except (binascii.Error, JSONDecodeError):
             raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    persons = await person_service.get_persons(size=page_size, search_after=search_after)
+    persons = await person_service.get_persons(size=page_size, page_number=page_number, search_after=search_after)
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 

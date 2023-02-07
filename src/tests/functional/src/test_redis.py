@@ -43,7 +43,7 @@ import pytest
         ),
         (
             '/api/v1/persons',
-            "cache::services.person:get_persons:(PersonService,):{'size': 50, 'search_after': None}",
+            "cache::services.person:get_persons:(PersonService,):{'size': 50, 'page_number': 1, 'search_after': None}",
             'count',
             99999999999
         ),
