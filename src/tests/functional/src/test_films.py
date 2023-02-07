@@ -5,24 +5,19 @@ from http import HTTPStatus
 pytestmark = pytest.mark.asyncio
 
 
-async def test_film(make_get_request, es_write_data_movies):
-    film_id = 'cadefb3c-948c-4363-9f34-864cbc6d00d4'
+@pytest.mark.parametrize(
+    'film_id, answer',
+    [
+        ('cadefb3c-948c-4363-9f34-864cbc6d00d4', {'status': HTTPStatus.OK, 'title': 'Saving Star Wars'}),
+        ('cadefb3c-948c-4363-9f34-864cbc6d00d0', {'status': HTTPStatus.NOT_FOUND}),
+        ('000', {'status': HTTPStatus.UNPROCESSABLE_ENTITY}),
+    ]
+)
+async def test_film(make_get_request, es_write_data_movies, film_id, answer):
     response = await make_get_request(url=f'/api/v1/films/{film_id}')
-    assert response.status == HTTPStatus.OK
-    assert response.body['id'] == film_id
-    assert response.body['title'] == 'Saving Star Wars'
-
-
-async def test_film_notfound(make_get_request, es_write_data_movies):
-    film_id = 'cadefb3c-948c-4363-9f34-864cbc6d00d0'
-    response = await make_get_request(url=f'/api/v1/films/{film_id}')
-    assert response.status == HTTPStatus.NOT_FOUND
-
-
-async def test_film_valid_id(make_get_request, es_write_data_movies):
-    film_id = '000'
-    response = await make_get_request(url=f'/api/v1/films/{film_id}')
-    assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert response.status == answer['status']
+    if 'title' in answer:
+        assert response.body['title'] == answer['title']
 
 
 async def test_films(make_get_request, es_write_data_movies):

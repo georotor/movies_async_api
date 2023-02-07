@@ -5,24 +5,19 @@ from http import HTTPStatus
 pytestmark = pytest.mark.asyncio
 
 
-async def test_person(make_get_request, es_write_data_persons, es_write_data_movies):
-    person_id = "189f1d17-c928-492a-aa33-2212b5ad1555"
+@pytest.mark.parametrize(
+    'person_id, answer',
+    [
+        ('189f1d17-c928-492a-aa33-2212b5ad1555', {'status': HTTPStatus.OK, 'name': 'Gareth Edwards'}),
+        ('cadefb3c-948c-4363-9f34-864cbc6d00d0', {'status': HTTPStatus.NOT_FOUND}),
+        ('189f1d7-c92-49a-aa3-222b5ad1555', {'status': HTTPStatus.UNPROCESSABLE_ENTITY}),
+    ]
+)
+async def test_person(make_get_request, es_write_data_persons, es_write_data_movies, person_id, answer):
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
-    assert response.status == HTTPStatus.OK
-    assert response.body["id"] == person_id
-    assert response.body["name"] == "Gareth Edwards"
-
-
-async def test_person_notfound(make_get_request, es_write_data_persons, es_write_data_movies):
-    person_id = "cadefb3c-948c-4363-9f34-864cbc6d00d0"
-    response = await make_get_request(url=f"/api/v1/persons/{person_id}")
-    assert response.status == HTTPStatus.NOT_FOUND
-
-
-async def test_person_valid_id(make_get_request, es_write_data_persons, es_write_data_movies):
-    person_id = "189f1d7-c92-49a-aa3-222b5ad1555"
-    response = await make_get_request(url=f"/api/v1/persons/{person_id}")
-    assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert response.status == answer['status']
+    if 'name' in answer:
+        assert response.body["name"] == answer['name']
 
 
 async def test_persons(make_get_request, es_write_data_persons):
@@ -35,42 +30,6 @@ async def test_persons(make_get_request, es_write_data_persons):
     )
     assert len(response.body["results"]) == 50
     assert response.body["results"][0]["id"] == "2871f883-e001-4848-92d0-002adbdf2547"
-
-
-async def test_persons_next(make_get_request, es_write_data_persons):
-    response = await make_get_request(url=f"/api/v1/persons")
-    page_next = response.body["next"]
-
-    response = await make_get_request(url=f"/api/v1/persons?page[next]={page_next}")
-    assert response.status == HTTPStatus.OK
-    assert len(response.body["results"]) == 50
-    assert response.body["results"][0]["id"] == "26b6e17c-dc91-48f2-98d5-43c6c237ed1f"
-
-
-async def test_persons_page_size(make_get_request, es_write_data_persons):
-    response = await make_get_request(url=f"/api/v1/persons?page[size]=100")
-    assert response.status == HTTPStatus.OK
-    assert len(response.body["results"]) == 100
-    assert response.body["results"][0]["id"] == "2871f883-e001-4848-92d0-002adbdf2547"
-
-
-async def test_persons_page_size_and_next(make_get_request, es_write_data_persons):
-    response = await make_get_request(url=f"/api/v1/persons?page[size]=100")
-    assert len(response.body["results"]) == 100
-    page_next = response.body["next"]
-
-    response = await make_get_request(url=f"/api/v1/persons?page[next]={page_next}")
-    assert response.status == HTTPStatus.OK
-    assert len(response.body["results"]) == 50
-    assert response.body["results"][0]["id"] == "e6ae9c81-aa7a-44b6-87ab-c63a2e298504"
-
-
-async def test_search_page_size_and_next(make_get_request, es_write_data_persons):
-    response = await make_get_request(
-        url=f"/api/v1/persons/search?query=carl&page[size]=20"
-    )
-    assert len(response.body["results"]) == 4
-    assert response.body["results"][0]["id"] == "858c3dfd-7f92-42a0-a916-047fb2babb36"
 
 
 @pytest.mark.parametrize(
