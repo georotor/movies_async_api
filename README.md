@@ -25,3 +25,9 @@ docker-compose up -d --build
 ```bash
 export DOCKER_BUILDKIT=0 && export COMPOSE_DOCKER_CLI_BUILD=0
 ```
+
+## Тесты
+Запуск тестов осуществляется командой:
+```bash
+docker-compose -f src/tests/functional/docker-compose.yml up --build
+```
