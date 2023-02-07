@@ -1,4 +1,4 @@
-import aioredis
+import redis.asyncio as aioredis
 import pytest
 
 from tests.functional.settings import test_settings
