@@ -57,7 +57,7 @@ import pytest
     ]
 )
 @pytest.mark.asyncio
-async def test_page_size(make_get_request, es_write_data_movies, url, params, answer):
+async def test_page_size(make_get_request, es_write_data_all, url, params, answer):
     # Размер страницы
     response = await make_get_request(url=url, params=params)
     assert response.status == answer['status']
@@ -110,7 +110,7 @@ async def test_page_size(make_get_request, es_write_data_movies, url, params, an
     ]
 )
 @pytest.mark.asyncio
-async def test_page_number(make_get_request, es_write_data_movies, url, params, answer):
+async def test_page_number(make_get_request, es_write_data_all, url, params, answer):
     # Номер страницы
     response = await make_get_request(url=url, params=params)
     assert response.status == answer['status']
@@ -166,7 +166,7 @@ async def test_page_number(make_get_request, es_write_data_movies, url, params, 
     ]
 )
 @pytest.mark.asyncio
-async def test_page_next(make_get_request, es_write_data_movies, url, params, answer):
+async def test_page_next(make_get_request, es_write_data_all, url, params, answer):
     # Следующая страница
     response = await make_get_request(url=url, params=params)
     assert response.status == answer['status']
