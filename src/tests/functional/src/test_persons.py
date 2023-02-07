@@ -22,6 +22,7 @@ async def test_person(make_get_request, es_write_data_persons, es_write_data_mov
 
 async def test_persons(make_get_request, es_write_data_persons):
     response = await make_get_request(url=f"/api/v1/persons")
+
     assert response.status == HTTPStatus.OK
     assert response.body["count"] == 4166
     assert (
@@ -63,6 +64,7 @@ async def test_persons(make_get_request, es_write_data_persons):
 )
 async def test_persons_search(make_get_request, es_write_data_persons, params, answer):
     response = await make_get_request(url=f"/api/v1/persons/search", params=params)
+
     assert response.status == HTTPStatus.OK
     assert response.body["count"] == answer["count"]
     assert len(response.body["results"]) == answer["results"]
@@ -85,6 +87,7 @@ async def test_persons_search(make_get_request, es_write_data_persons, params, a
 )
 async def test_person_film(make_get_request, es_write_data_persons, es_write_data_movies, params, answer):
     response = await make_get_request(url=f"/api/v1/persons/{params['person_id']}/film")
+
     assert response.status == HTTPStatus.OK
     assert response.body["count"] == answer["count"]
     if response.body["count"] > 0:

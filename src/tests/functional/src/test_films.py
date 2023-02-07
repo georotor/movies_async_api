@@ -22,6 +22,7 @@ async def test_film(make_get_request, es_write_data_movies, film_id, answer):
 
 async def test_films(make_get_request, es_write_data_movies):
     response = await make_get_request(url=f'/api/v1/films')
+
     assert response.status == HTTPStatus.OK
     assert response.body['count'] == 999
     assert response.body[
@@ -60,6 +61,7 @@ async def test_films_sort(make_get_request, es_write_data_movies, params, answer
 )
 async def test_films_filter(make_get_request, es_write_data_movies, params, answer):
     response = await make_get_request(url=f'/api/v1/films', params=params)
+
     assert response.status == answer['status']
     assert response.body['count'] == answer['count']
     assert response.body['next'] == answer['next']
@@ -89,6 +91,7 @@ async def test_films_filter(make_get_request, es_write_data_movies, params, answ
 async def test_films_search(make_get_request, es_write_data_movies, params, answer):
     # Поиск фильмов
     response = await make_get_request(url=f'/api/v1/films/search', params=params)
+
     assert response.status == answer['status']
     assert response.body['count'] == answer['count']
     assert len(response.body['results']) == answer['results']
