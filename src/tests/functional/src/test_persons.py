@@ -2,7 +2,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_person(make_get_request, es_write_data_persons):
+async def test_person(make_get_request, es_write_data_persons, es_write_data_movies):
     # Проверяем person
     person_id = "189f1d17-c928-492a-aa33-2212b5ad1555"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
@@ -12,7 +12,7 @@ async def test_person(make_get_request, es_write_data_persons):
 
 
 @pytest.mark.asyncio
-async def test_person_notfound(make_get_request, es_write_data_persons):
+async def test_person_notfound(make_get_request, es_write_data_persons, es_write_data_movies):
     # Отсутствие person
     person_id = "cadefb3c-948c-4363-9f34-864cbc6d00d0"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
@@ -20,7 +20,7 @@ async def test_person_notfound(make_get_request, es_write_data_persons):
 
 
 @pytest.mark.asyncio
-async def test_person_valid_id(make_get_request, es_write_data_persons):
+async def test_person_valid_id(make_get_request, es_write_data_persons, es_write_data_movies):
     # Валидацию id
     person_id = "189f1d7-c92-49a-aa3-222b5ad1555"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}")
@@ -139,7 +139,7 @@ async def test_persons_search(make_get_request, es_write_data_persons, params, a
     ],
 )
 @pytest.mark.asyncio
-async def test_person_film(make_get_request, es_write_data_persons, params, answer):
+async def test_person_film(make_get_request, es_write_data_persons, es_write_data_movies, params, answer):
     response = await make_get_request(url=f"/api/v1/persons/{params['person_id']}/film")
     assert response.status == answer["status"]
     assert response.body["count"] == answer["count"]
@@ -149,7 +149,7 @@ async def test_person_film(make_get_request, es_write_data_persons, params, answ
 
 
 @pytest.mark.asyncio
-async def test_person_film_notfound(make_get_request, es_write_data_persons):
+async def test_person_film_notfound(make_get_request, es_write_data_persons, es_write_data_movies):
     person_id = "05572526-d39e-483f-b548-92ebda7702ee"
     response = await make_get_request(url=f"/api/v1/persons/{person_id}/film")
     assert response.status == 404
