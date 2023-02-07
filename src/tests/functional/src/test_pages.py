@@ -113,6 +113,7 @@ async def test_page_size(make_get_request, es_write_data_all, url, params, answe
 )
 async def test_page_number(make_get_request, es_write_data_all, url, params, answer):
     response = await make_get_request(url=url, params=params)
+
     assert response.status == HTTPStatus.OK
     assert len(response.body['results']) == answer['results']
     assert response.body['results'][0]['id'] == answer['id']
@@ -151,11 +152,14 @@ async def test_page_number(make_get_request, es_write_data_all, url, params, ans
 )
 async def test_page_next(make_get_request, es_write_data_all, url, params, answer):
     response = await make_get_request(url=url, params=params)
+
     assert response.status == HTTPStatus.OK
     assert len(response.body['results']) == answer['results']
     assert response.body['next']
+
     # Пробуем запросить следующую страницу
     next_response = await make_get_request(url=url, params={**params, 'page[next]': response.body['next']})
+
     assert next_response.status == 200
     assert len(next_response.body['results']) > 0
     assert response.body['results'][0]['id'] != next_response.body['results'][0]['id']

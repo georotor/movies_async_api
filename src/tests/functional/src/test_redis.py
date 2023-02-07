@@ -72,12 +72,16 @@ async def test_redis(redis_client, make_get_request, es_write_data_all, url, cac
     """
     await redis_client.delete(cache_key)
     await make_get_request(url)
+
     cache_data = await redis_client.get(cache_key)
+
     assert cache_data
 
     cache_data = json.loads(cache_data)
     cache_data[inject_field] = inject_value
     await redis_client.set(cache_key, json.dumps(cache_data))
+
     response = await make_get_request(url)
     await redis_client.delete(cache_key)
+
     assert response.body[inject_field] == inject_value

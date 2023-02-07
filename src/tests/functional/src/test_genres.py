@@ -22,6 +22,7 @@ async def test_genre(make_get_request, es_write_data_genres, genre_id, answer):
 
 async def test_genres(make_get_request, es_write_data_genres):
     response = await make_get_request(url=f"/api/v1/genres")
+
     assert response.status == HTTPStatus.OK
     assert response.body["count"] == 26
     assert len(response.body["results"]) == 10
