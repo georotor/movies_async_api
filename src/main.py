@@ -1,6 +1,5 @@
 from logging import config as logging_config
 
-import aiohttp
 import redis.asyncio as aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
@@ -12,6 +11,8 @@ from fastapi_cache.backends.redis import RedisBackend
 from api.v1 import films, genres, persons
 from cache.coder import JsonCoder
 from cache.key_builder import key_builder
+from core.auth import AuthError, check_auth_url
+from core.backoff import BackoffError
 from core.config import settings
 from core.logger import LOGGING
 from db import elastic, redis
@@ -79,17 +80,13 @@ async def authenticate_user(request: Request, call_next):
     (ему выдаем роль 'Anonymous').
 
     """
-    session = aiohttp.ClientSession()
-    async with session.get(
-            settings.auth_url, headers=request.headers
-    ) as auth_response:
-        if auth_response.status == status.HTTP_200_OK:
-            roles = await auth_response.json() or ['Guest']
-        else:
-            roles = ['Anonymous']
-        request.state.auth = roles
-        response = await call_next(request)
-        return response
+    try:
+        roles = await check_auth_url(request)
+    except BackoffError:
+        roles = ['Anonymous']
+    request.state.auth = roles
+    response = await call_next(request)
+    return response
 
 
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])

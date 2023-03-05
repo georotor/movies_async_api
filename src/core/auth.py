@@ -5,10 +5,28 @@
 @user_role_required('manager') - пускает пользователей с конкретной ролью.
 
 """
-
-from fastapi import HTTPException, status
 from functools import wraps
 
+import aiohttp
+from fastapi import HTTPException, status
+
+from core.backoff import async_backoff
+from core.config import settings
+
+
+class AuthError(Exception):
+    """Ошибка авторизации пользователя. """
+
+
+@async_backoff(max_retries=3)
+async def check_auth_url(request):
+    session = aiohttp.ClientSession()
+    async with session.get(
+            settings.auth_url, headers=request.headers
+    ) as auth_response:
+        if auth_response.status == status.HTTP_200_OK:
+            return await auth_response.json() or ['Guest']
+        return ['Anonymous']
 
 def user_role_required(role='premium'):
     def decorator(func):
