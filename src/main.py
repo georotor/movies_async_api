@@ -1,9 +1,10 @@
 from logging import config as logging_config
 
+import aiohttp
 import redis.asyncio as aioredis
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import ORJSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
@@ -63,6 +64,32 @@ async def startup():
 async def shutdown():
     await redis.redis.close()
     await elastic.es.close()
+
+
+@app.middleware('http')
+async def authenticate_user(request: Request, call_next):
+    """Используем декоратор middleware('http'):
+    https://fastapi.tiangolo.com/tutorial/middleware/
+
+    Обращаемся к ручке auth сервиса для проверки токена. Если токен валидный -
+    ручка возвращает status.HTTP_200_OK и список ролей.
+
+    Мы разделяем аутентифицированного пользователя без списка ролей (ему
+    назначаем роль 'Guest') и пользователя, вообще не прошедшего аутентификацию
+    (ему выдаем роль 'Anonymous').
+
+    """
+    session = aiohttp.ClientSession()
+    async with session.get(
+            settings.auth_url, headers=request.headers
+    ) as auth_response:
+        if auth_response.status == status.HTTP_200_OK:
+            roles = await auth_response.json() or ['Guest']
+        else:
+            roles = ['Anonymous']
+        request.state.auth = roles
+        response = await call_next(request)
+        return response
 
 
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
