@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from models.node import Node
 from services.genre import GenreService, get_genre_service
@@ -26,7 +26,9 @@ class GenresList(Node):
 
 @router.get("/{genre_id}", response_model=GenreDetails)
 async def get_genre_details(
-    genre_id: UUID, genre_service: GenreService = Depends(get_genre_service)
+    request: Request,
+    genre_id: UUID,
+    genre_service: GenreService = Depends(get_genre_service)
 ) -> GenreDetails:
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
@@ -37,6 +39,7 @@ async def get_genre_details(
 
 @router.get("", response_model=GenresList)
 async def get_genres(
+    request: Request,
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
     page_number: int = Query(default=1, alias="page[number]", ge=1),
     genre_service: GenreService = Depends(get_genre_service),

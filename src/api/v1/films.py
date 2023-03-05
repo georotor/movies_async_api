@@ -3,7 +3,7 @@ from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from orjson import JSONDecodeError
 
 from models.node import Node
@@ -49,6 +49,7 @@ class FilmsSorting(str, Enum):
 
 @router.get("/search", response_model=FilmsList)
 async def get_films(
+        request: Request,
         query: str = Query(default=..., min_length=3),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
         page_number: int = Query(
@@ -80,7 +81,7 @@ async def get_films(
 
 @router.get("/{film_id}", response_model=FilmDetails)
 async def film_details(
-        film_id: UUID, film_service: FilmService = Depends(get_film_service)
+        request: Request, film_id: UUID, film_service: FilmService = Depends(get_film_service),
 ) -> FilmDetails:
     film = await film_service.get_by_id(film_id)
     if not film:
@@ -91,6 +92,7 @@ async def film_details(
 
 @router.get("", response_model=FilmsList)
 async def get_films(
+        request: Request,
         sort: FilmsSorting | None = None,
         filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
@@ -98,7 +100,7 @@ async def get_films(
             default=1,
             alias="page[number]",
             ge=1,
-            description="Номер страницы, данным перебором можно получить не более 10000 документов"
+            description="Номер страницы, данным перебором можно получить не более 10000 документов",
         ),
         page_next: str | None = Query(
             default=None,
