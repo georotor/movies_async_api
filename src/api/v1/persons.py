@@ -3,7 +3,7 @@ from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from orjson import JSONDecodeError
 
 from api.v1.films import Film
@@ -41,6 +41,7 @@ class FilmsResult(Node):
 
 @router.get("/search", response_model=PersonsResult)
 async def get_persons(
+    request: Request,
     query: str = Query(default=..., min_length=3),
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
     page_next: str = Query(default=None, alias="page[next]"),
@@ -61,7 +62,11 @@ async def get_persons(
 
 
 @router.get("/{person_id}/film", response_model=FilmsResult, description="Список всех фильмов с персоной.")
-async def get_person_films(person_id: UUID, person_service: PersonService = Depends(get_person_service)) -> FilmsResult:
+async def get_person_films(
+        request: Request,
+        person_id: UUID,
+        person_service: PersonService = Depends(get_person_service)
+) -> FilmsResult:
     movies = await person_service.get_movies_with_person(person_id)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
