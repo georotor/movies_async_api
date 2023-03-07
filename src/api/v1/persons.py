@@ -12,6 +12,12 @@ from services.person import PersonService, get_person_service
 router = APIRouter()
 
 
+@router.get(
+    "/search",
+    response_model=PersonsResult,
+    summary='Список персон',
+    description='Список персон с сортировкой по имени и поддержкой пагинации'
+)
 @router.get("/search", response_model=PersonsResult)
 async def get_persons(
     query: str = Query(default=..., min_length=3),
@@ -33,7 +39,12 @@ async def get_persons(
     return PersonsResult(**dict(persons))
 
 
-@router.get("/{person_id}/film", response_model=FilmsResult, description="Список всех фильмов с персоной.")
+@router.get(
+    "/{person_id}/film",
+    response_model=FilmsResult,
+    summary='Фильмы с персоной',
+    description='Список всех фильмов в которых принимала участие персона'
+)
 async def get_person_films(
         person_id: UUID,
         person_service: PersonService = Depends(get_person_service)
@@ -45,7 +56,12 @@ async def get_person_films(
     return FilmsResult(**dict(movies))
 
 
-@router.get("/{person_id}", response_model=PersonDetails, description="Детальная информация по персоне.")
+@router.get(
+    "/{person_id}",
+    response_model=PersonDetails,
+    summary='Информация о персоне',
+    description='Детальная информация по персоне включая список ролей'
+)
 async def get_person_details(
     person_id: UUID, person_service: PersonService = Depends(get_person_service)
 ) -> PersonDetails:
@@ -57,7 +73,12 @@ async def get_person_details(
     return PersonDetails(**dict(person))
 
 
-@router.get("", response_model=PersonsResult)
+@router.get(
+    "",
+    response_model=PersonsResult,
+    summary='Поиск персоны',
+    description='Нечеткий поиск, выдает список персон с поддержкой пагинации'
+)
 async def get_persons(
     page_size: int = Query(default=50, ge=10, le=100, alias="page[size]"),
     pages: PaginatedParams = Depends(),
