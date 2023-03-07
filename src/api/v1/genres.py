@@ -3,25 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from models.node import Node
+from .schemes import GenreDetails, GenresList
 from services.genre import GenreService, get_genre_service
 
 router = APIRouter()
-
-
-class Genre(Node):
-    id: UUID
-    name: str
-
-
-class GenreDetails(Genre):
-    films_count: int
-    description: str
-
-
-class GenresList(Node):
-    count: int
-    results: list[Genre]
 
 
 @router.get("/{genre_id}", response_model=GenreDetails)

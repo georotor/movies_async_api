@@ -1,49 +1,13 @@
-from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .exts.params import PaginatedParams
-from models.node import Node
+from .schemes import FilmDetails, FilmsList, FilmsSorting
 from services.film import FilmService, get_film_service
 
 router = APIRouter()
-
-
-class Genre(Node):
-    id: UUID
-    name: str
-
-
-class Person(Node):
-    id: UUID
-    name: str
-
-
-class Film(Node):
-    id: str
-    title: str
-    imdb_rating: float
-
-
-class FilmDetails(Film):
-    description: str
-    genre: list[Genre]
-    actors: list[Person]
-    writers: list[Person]
-    directors: list[Person]
-
-
-class FilmsList(Node):
-    count: int
-    next: str | None
-    results: list[Film]
-
-
-class FilmsSorting(str, Enum):
-    asc = "imdb_rating"
-    desc = "-imdb_rating"
 
 
 @router.get("/search", response_model=FilmsList)
