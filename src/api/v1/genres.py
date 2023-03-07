@@ -24,7 +24,12 @@ class GenresList(Node):
     results: list[Genre]
 
 
-@router.get("/{genre_id}", response_model=GenreDetails)
+@router.get(
+    "/{genre_id}",
+    response_model=GenreDetails,
+    summary='Информация о жанре',
+    description='Получение данных о жанре по id'
+)
 async def get_genre_details(
     genre_id: UUID,
     genre_service: GenreService = Depends(get_genre_service)
@@ -36,7 +41,12 @@ async def get_genre_details(
     return GenreDetails(**dict(genre))
 
 
-@router.get("", response_model=GenresList)
+@router.get(
+    "",
+    response_model=GenresList,
+    summary='Список жанров',
+    description='Список жанров с поддержкой пагинации'
+)
 async def get_genres(
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
     page_number: int = Query(default=1, alias="page[number]", ge=1),

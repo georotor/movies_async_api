@@ -46,7 +46,12 @@ class FilmsSorting(str, Enum):
     desc = "-imdb_rating"
 
 
-@router.get("/search", response_model=FilmsList)
+@router.get(
+    "/search",
+    response_model=FilmsList,
+    summary='Поиск фильма',
+    description='Нечеткий поиск, выдает список фильмов с поддержкой пагинации'
+)
 async def get_films(
         query: str = Query(default=..., min_length=3),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
@@ -62,7 +67,12 @@ async def get_films(
     return FilmsList(**dict(movies))
 
 
-@router.get("/{film_id}", response_model=FilmDetails)
+@router.get(
+    "/{film_id}",
+    response_model=FilmDetails,
+    summary='Информация о фильме',
+    description='Получение данных о фильме по id'
+)
 async def film_details(
         film_id: UUID, film_service: FilmService = Depends(get_film_service),
 ) -> FilmDetails:
@@ -73,7 +83,12 @@ async def film_details(
     return FilmDetails(**dict(film))
 
 
-@router.get("", response_model=FilmsList)
+@router.get(
+    "",
+    response_model=FilmsList,
+    summary='Список фильмов',
+    description='Список фильмов по жанрам с поддержкой пагинации'
+)
 async def get_films(
         sort: FilmsSorting | None = None,
         filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),
