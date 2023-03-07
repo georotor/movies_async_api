@@ -20,6 +20,9 @@ class AuthError(Exception):
 
 @async_backoff(max_retries=3)
 async def check_auth_url(request):
+    if request.headers.get('authorization') is None:
+        return ['Anonymous']
+
     session = aiohttp.ClientSession()
     async with session.get(
             settings.auth_url, headers=request.headers
