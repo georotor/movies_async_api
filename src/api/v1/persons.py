@@ -1,11 +1,11 @@
 import binascii
-from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from orjson import JSONDecodeError
 
+from .exts.params import PaginatedParams
 from api.v1.films import Film
 from models.node import Node
 from services.person import PersonService, get_person_service
@@ -41,7 +41,6 @@ class FilmsResult(Node):
 
 @router.get("/search", response_model=PersonsResult)
 async def get_persons(
-    request: Request,
     query: str = Query(default=..., min_length=3),
     page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
     page_next: str = Query(default=None, alias="page[next]"),
@@ -63,7 +62,6 @@ async def get_persons(
 
 @router.get("/{person_id}/film", response_model=FilmsResult, description="Список всех фильмов с персоной.")
 async def get_person_films(
-        request: Request,
         person_id: UUID,
         person_service: PersonService = Depends(get_person_service)
 ) -> FilmsResult:
@@ -89,24 +87,12 @@ async def get_person_details(
 @router.get("", response_model=PersonsResult)
 async def get_persons(
     page_size: int = Query(default=50, ge=10, le=100, alias="page[size]"),
-    page_next: str = Query(default=None, alias="page[next]"),
-    page_number: int = Query(
-        default=1,
-        alias="page[number]",
-        ge=1,
-        description="Номер страницы, данным перебором можно получить не более 10000 документов"
-    ),
+    pages: PaginatedParams = Depends(),
     person_service: PersonService = Depends(get_person_service),
 ):
 
-    search_after = None
-    if page_next:
-        try:
-            search_after = await person_service.b64decode(page_next)
-        except (binascii.Error, JSONDecodeError):
-            raise HTTPException(status_code=422, detail="page[next] not valid")
-
-    persons = await person_service.get_persons(size=page_size, page_number=page_number, search_after=search_after)
+    persons = await person_service.get_persons(size=page_size,
+                                               page_number=pages.page_number, search_after=pages.search_after)
     if not persons:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='persons not found')
 
