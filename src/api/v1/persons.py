@@ -2,41 +2,14 @@ import binascii
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from orjson import JSONDecodeError
 
 from .exts.params import PaginatedParams
-from api.v1.films import Film
-from models.node import Node
+from .schemes import FilmsResult, PersonDetails, PersonsResult
 from services.person import PersonService, get_person_service
 
 router = APIRouter()
-
-
-class Roles(Node):
-    actor: list[UUID]
-    writer: list[UUID]
-    director: list[UUID]
-
-
-class Person(Node):
-    id: UUID
-    name: str
-
-
-class PersonDetails(Person):
-    roles: Roles
-
-
-class PersonsResult(Node):
-    count: int
-    next: str | None
-    results: list[Person]
-
-
-class FilmsResult(Node):
-    count: int
-    results: list[Film]
 
 
 @router.get("/search", response_model=PersonsResult)
