@@ -1,11 +1,10 @@
-import binascii
 from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from orjson import JSONDecodeError
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from .exts.params import PaginatedParams
 from models.node import Node
 from services.film import FilmService, get_film_service
 
@@ -49,30 +48,14 @@ class FilmsSorting(str, Enum):
 
 @router.get("/search", response_model=FilmsList)
 async def get_films(
-        request: Request,
         query: str = Query(default=..., min_length=3),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
-        page_number: int = Query(
-            default=1,
-            alias="page[number]",
-            ge=1,
-            description="Номер страницы, данным перебором можно получить не более 10000 документов"
-        ),
-        page_next: str | None = Query(
-            default=None,
-            alias="page[next]",
-            description="Токен (next) для получения следующей страницы, при использовании игнорируется page[number]"
-        ),
+        pages: PaginatedParams = Depends(),
         film_service: FilmService = Depends(get_film_service),
 ) -> FilmsList:
-    search_after = None
-    if page_next:
-        try:
-            search_after = await film_service.b64decode(page_next)
-        except (binascii.Error, JSONDecodeError):
-            raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    movies = await film_service.search(search=query, search_after=search_after, page_number=page_number, size=page_size)
+    movies = await film_service.search(search=query, search_after=pages.search_after,
+                                       page_number=pages.page_number, size=page_size)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 
@@ -81,7 +64,7 @@ async def get_films(
 
 @router.get("/{film_id}", response_model=FilmDetails)
 async def film_details(
-        request: Request, film_id: UUID, film_service: FilmService = Depends(get_film_service),
+        film_id: UUID, film_service: FilmService = Depends(get_film_service),
 ) -> FilmDetails:
     film = await film_service.get_by_id(film_id)
     if not film:
@@ -92,32 +75,15 @@ async def film_details(
 
 @router.get("", response_model=FilmsList)
 async def get_films(
-        request: Request,
         sort: FilmsSorting | None = None,
         filter_genre: UUID | None = Query(default=None, alias="filter[genre]"),
         page_size: int = Query(default=10, alias="page[size]", ge=10, le=100),
-        page_number: int = Query(
-            default=1,
-            alias="page[number]",
-            ge=1,
-            description="Номер страницы, данным перебором можно получить не более 10000 документов",
-        ),
-        page_next: str | None = Query(
-            default=None,
-            alias="page[next]",
-            description="Токен (next) для получения следующей страницы, при использовании игнорируется page[number]"
-        ),
+        pages: PaginatedParams = Depends(),
         film_service: FilmService = Depends(get_film_service),
 ) -> FilmsList:
-    search_after = None
-    if page_next:
-        try:
-            search_after = await film_service.b64decode(page_next)
-        except (binascii.Error, JSONDecodeError):
-            raise HTTPException(status_code=422, detail="page[next] not valid")
 
-    movies = await film_service.get_films(sort=sort, search_after=search_after, filter_genre=filter_genre,
-                                          size=page_size, page_number=page_number)
+    movies = await film_service.get_films(sort=sort, search_after=pages.search_after, filter_genre=filter_genre,
+                                          size=page_size, page_number=pages.page_number)
     if not movies:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='films not found')
 

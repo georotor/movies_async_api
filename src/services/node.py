@@ -21,6 +21,13 @@ class NodeService:
         return self.__class__.__name__
 
     @staticmethod
+    def b64decode_sync(s: str) -> ...:
+        """Декодирование данных search_after полученных из URL."""
+        padding = 4 - (len(s) % 4)
+        s = s + ("=" * padding)
+        return loads(urlsafe_b64decode(s))
+
+    @staticmethod
     async def b64decode(s: str) -> ...:
         """Декодирование данных search_after полученных из URL."""
         padding = 4 - (len(s) % 4)
