@@ -17,6 +17,7 @@ class Film(Node):
     id: str
     title: str
     imdb_rating: float
+    length: int
     description: str
     genre: list[Genre]
     actors: list[Person]

@@ -44,6 +44,7 @@ class Film(Node):
     id: str
     title: str
     imdb_rating: float
+    length: int
 
 
 class FilmDetails(Film):
