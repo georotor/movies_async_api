@@ -1,9 +1,14 @@
-# Проектное задание: Async API
+# Movies: Async API для кинотеатра
 
-Репозиторий с Async API: https://github.com/georotor/async_api
+[![CI](https://github.com/georotor/movies_async_api/actions/workflows/tests.yml/badge.svg)](https://github.com/georotor/movies_async_api/actions/workflows/tests.yml)
 
-В проекте используется ETL: https://github.com/georotor/new_admin_panel_sprint_3
+## Компоненты сервиса
+- [FastAPI - реализация API](https://github.com/georotor/movies_async_api/tree/main/src)
+- Elasticsearch и Postgres - хранилища
+- Redis - хранилище для кэша
+- [ETL заполнения поисковой БД](https://github.com/georotor/movies_etl)
 
+## Запуск сервиса
 
 Для запуска потребуется два файла с переменными окружения:
 
@@ -25,6 +30,8 @@ docker-compose up -d --build
 ```bash
 export DOCKER_BUILDKIT=0 && export COMPOSE_DOCKER_CLI_BUILD=0
 ```
+
+После старта будет доступен [Swagger API](http://127.0.0.1/api/openapi).
 
 ## Тесты
 Запуск тестов осуществляется командой:
