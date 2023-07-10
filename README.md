@@ -2,11 +2,14 @@
 
 [![CI](https://github.com/georotor/movies_async_api/actions/workflows/tests.yml/badge.svg)](https://github.com/georotor/movies_async_api/actions/workflows/tests.yml)
 
+## Архитектура
+
+![Архитектура](https://github.com/georotor/movies_async_api/blob/main/doc/schema.png?raw=true)
+
 ## Компоненты сервиса
 - [FastAPI - реализация API](https://github.com/georotor/movies_async_api/tree/main/src)
-- Elasticsearch и Postgres - хранилища
+- Elasticsearch - хранилище
 - Redis - хранилище для кэша
-- [ETL заполнения поисковой БД](https://github.com/georotor/movies_etl)
 
 ## Запуск сервиса
 
