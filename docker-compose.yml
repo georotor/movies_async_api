@@ -38,7 +38,7 @@ services:
       timeout: 5s
       retries: 120
   etl:
-    build: git@github.com:georotor/new_admin_panel_sprint_3.git#main
+    build: git@github.com:georotor/movies_etl.git#main
     env_file:
       - ./.env
       - ./.env.db
